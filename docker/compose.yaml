@@ -1,0 +1,12 @@
+name: ns-cli
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: starter:dev
+    container_name: starter_dev
+    volumes:
+      - ../:/app
+    stdin_open: true
+    tty: true

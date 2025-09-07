@@ -18,7 +18,12 @@ coverage.*
 profile.cov
 
 # Dependency directories (remove the comment below to include it)
-# vendor/
+vendor/
+dist/
+bin/
+tmp/*.log
+*.log
+.DS_Store
 
 # Go workspace file
 go.work
@@ -28,5 +33,11 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+
+./starter
+/starter
+starter
+build-local/*
+!build-local/.gitkeep
