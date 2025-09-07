@@ -22,11 +22,11 @@ jobs:
       - name: Build CLI for all platforms
         run: |
           mkdir -p dist
-          GOOS=linux GOARCH=amd64 go build -o dist/ns-linux-amd64 .
-          GOOS=linux GOARCH=arm64 go build -o dist/ns-linux-arm64 .
-          GOOS=darwin GOARCH=amd64 go build -o dist/ns-darwin-amd64 .
-          GOOS=darwin GOARCH=arm64 go build -o dist/ns-darwin-arm64 .
-          GOOS=windows GOARCH=amd64 go build -o dist/ns-windows-amd64.exe .
+          GOOS=linux GOARCH=amd64 go build -o dist/starter-linux-amd64 .
+          GOOS=linux GOARCH=arm64 go build -o dist/starter-linux-arm64 .
+          GOOS=darwin GOARCH=amd64 go build -o dist/starter-darwin-amd64 .
+          GOOS=darwin GOARCH=arm64 go build -o dist/starter-darwin-arm64 .
+          GOOS=windows GOARCH=amd64 go build -o dist/starter-windows-amd64.exe .
 
       - name: Upload binaries to GitHub Release
         uses: softprops/action-gh-release@v2
