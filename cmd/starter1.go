@@ -100,10 +100,10 @@ var starter1Cmd = &cobra.Command{
 		}
 
 		// creation du projet angular
-		fmt.Printf("- Lancement Angular CLI dans %s: ng new %s --ssr \n", project, project)
-		if err := runAngularCreate(project, cwdName); err != nil {
-			return fmt.Errorf("échec de la création Angular: %w", err)
-		}
+    fmt.Printf("- Lancement Angular CLI dans %s: ng new %s --ssr \n", project, project)
+    if err := runAngularCreate(project, wd); err != nil {
+        return fmt.Errorf("échec de la création Angular: %w", err)
+    }
 
 		fmt.Println("- Application Angular créée -")
 
@@ -273,7 +273,7 @@ Notes:
 `, project, project, project)
 }
 
-func runAngularCreate(projectName, cwdName string) error {
+func runAngularCreate(projectName, workdir string) error {
 	// Pré-vérification outils
 	hasNg := hasCommand("ng")
 	hasNpx := hasCommand("npx")
@@ -288,8 +288,8 @@ func runAngularCreate(projectName, cwdName string) error {
 	}
 
 	// Utilise Angular CLI directement si présent
-	cmd := exec.Command("ng", "new", projectName, "--ssr")
-	cmd.Dir = cwdName
+    cmd := exec.Command("ng", "new", projectName, "--ssr")
+    cmd.Dir = workdir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -299,12 +299,12 @@ func runAngularCreate(projectName, cwdName string) error {
 		if !hasNpx {
 			return fmt.Errorf("échec 'ng new'. Et 'npx' n'est pas disponible. Installez Angular CLI: npm install -g @angular/cli (ou installez npx)")
 		}
-		fallback := exec.Command("npx", "-y", "@angular/cli@latest", "new", projectName, "--ssr")
-		fallback.Dir = cwdName
-		fallback.Stdout = os.Stdout
-		fallback.Stderr = os.Stderr
-		fallback.Stdin = os.Stdin
-		if err2 := fallback.Run(); err2 != nil {
+        fallback := exec.Command("npx", "-y", "@angular/cli@latest", "new", projectName, "--ssr")
+        fallback.Dir = workdir
+        fallback.Stdout = os.Stdout
+        fallback.Stderr = os.Stderr
+        fallback.Stdin = os.Stdin
+        if err2 := fallback.Run(); err2 != nil {
 			return fmt.Errorf("'ng' et 'npx' ont échoué: %v / %v. Guide: installer Node.js >= 18 et Angular CLI: npm install -g @angular/cli", err, err2)
 		}
 	}
