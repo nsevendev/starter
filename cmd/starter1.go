@@ -100,8 +100,8 @@ var starter1Cmd = &cobra.Command{
 		}
 
 		// creation du projet angular
-		fmt.Printf("- Lancement Angular CLI dans %s: ng new %s --ssr --directory .\n", project, project)
-		if err := runAngularCreate(project); err != nil {
+		fmt.Printf("- Lancement Angular CLI dans %s: ng new %s --ssr \n", project, project)
+		if err := runAngularCreate(project, cwdName); err != nil {
 			return fmt.Errorf("échec de la création Angular: %w", err)
 		}
 
@@ -273,7 +273,7 @@ Notes:
 `, project, project, project)
 }
 
-func runAngularCreate(projectName string) error {
+func runAngularCreate(projectName, cwdName string) error {
 	// Pré-vérification outils
 	hasNg := hasCommand("ng")
 	hasNpx := hasCommand("npx")
@@ -288,8 +288,8 @@ func runAngularCreate(projectName string) error {
 	}
 
 	// Utilise Angular CLI directement si présent
-	cmd := exec.Command("ng", "new", projectName, "--ssr", "--directory", ".")
-	cmd.Dir = projectName
+	cmd := exec.Command("ng", "new", projectName, "--ssr")
+	cmd.Dir = cwdName
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -299,8 +299,8 @@ func runAngularCreate(projectName string) error {
 		if !hasNpx {
 			return fmt.Errorf("échec 'ng new'. Et 'npx' n'est pas disponible. Installez Angular CLI: npm install -g @angular/cli (ou installez npx)")
 		}
-		fallback := exec.Command("npx", "-y", "@angular/cli@latest", "new", projectName, "--ssr", "--directory", ".")
-		fallback.Dir = projectName
+		fallback := exec.Command("npx", "-y", "@angular/cli@latest", "new", projectName, "--ssr")
+		fallback.Dir = cwdName
 		fallback.Stdout = os.Stdout
 		fallback.Stderr = os.Stderr
 		fallback.Stdin = os.Stdin
