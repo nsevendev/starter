@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/nsevendev/starter/internal/starter1"
@@ -49,18 +50,20 @@ var starter1Cmd = &cobra.Command{
 		}
 		cwdName := filepath.Base(wd)
 
+		appDir := filepath.Join(wd, project)
+
 		// pas de host renseigné, propose host par defaut
 		if !cmd.Flags().Changed("host") {
 			def := fmt.Sprintf("Host(`%v.localhost`)", project)
 			fmt.Println("- Aucun host renseigné -")
 			if askYesNo(fmt.Sprintf("  Appliquer le host par défaut => %v ? [o/N]: ", def), true) {
 				starter1HostRule = def
-				fmt.Printf("- Host %v appliquée -", starter1HostRule)
+				fmt.Printf("- Host %v appliquée -\n", starter1HostRule)
 			} else {
 				return errors.New("commande annulée: aucun host défini")
 			}
 		} else {
-			fmt.Printf("- Application du host: %v -", starter1HostRule)
+			fmt.Printf("- Application du host: %v -\n", starter1HostRule)
 			def := fmt.Sprintf("Host(`%v`)", starter1HostRule)
 			starter1HostRule = def
 		}
@@ -69,7 +72,7 @@ var starter1Cmd = &cobra.Command{
 		if !cmd.Flags().Changed("node") {
 			fmt.Println("- Aucune version node renseigné -")
 			if askYesNo(fmt.Sprintf("  Appliquer la version de node par défaut => %v ? [o/N]: ", starter1NodeVer), true) {
-				fmt.Printf("- Version %v appliquée -", starter1NodeVer)
+				fmt.Printf("- Version %v appliquée -\n", starter1NodeVer)
 			} else {
 				return errors.New("commande annulée: aucune version de node défini")
 			}
@@ -79,7 +82,7 @@ var starter1Cmd = &cobra.Command{
 		if !cmd.Flags().Changed("port") {
 			fmt.Println("- Aucun port renseigné -")
 			if askYesNo(fmt.Sprintf("  Appliquer le port par défaut => %v ? [o/N]: ", starter1Port), true) {
-				fmt.Printf("- Port %v appliquée -", starter1Port)
+				fmt.Printf("- Port %v appliquée -\n", starter1Port)
 			} else {
 				return errors.New("commande annulée: aucun port défini")
 			}
@@ -94,18 +97,18 @@ var starter1Cmd = &cobra.Command{
 
 		// validation des données de creation
 		if askYesNo(fmt.Sprintf("  Est ce que ses valeurs vous conviennent ? [o/N]: "), true) {
-			fmt.Printf("------ Initialisation du projet ------")
+			fmt.Printf("------ Initialisation du projet ------\n")
 		} else {
 			return errors.New("commande annulée: les valeurs définis ne conviennent pas")
 		}
 
 		// creation du projet angular
-    fmt.Printf("- Lancement Angular CLI dans %s: ng new %s --ssr \n", project, project)
-    if err := runAngularCreate(project, wd); err != nil {
-        return fmt.Errorf("échec de la création Angular: %w", err)
-    }
+		fmt.Printf("- Lancement Angular CLI dans %s: ng new %s --ssr \n", project, project)
+		if err := runAngularCreate(project, wd); err != nil {
+			return fmt.Errorf("échec de la création Angular: %w", err)
+		}
 
-		fmt.Println("- Application Angular créée -")
+		fmt.Println("- [OK] Application Angular -")
 
 		// creation du dossier docker
 		dockerDir := filepath.Join("docker")
@@ -113,7 +116,7 @@ var starter1Cmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Println("- Dossier docker créé -")
+		fmt.Println("- [OK] Dossier docker -")
 
 		// creation du dockerfile app
 		dockerfilePath := filepath.Join(dockerDir, "Dockerfile")
@@ -121,58 +124,94 @@ var starter1Cmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Println("- Dockerfile du projet angular créé -")
+		fmt.Println("- [OK] Dockerfile du projet angular -")
 
-		// Files: compose variants (context points to project root)
+		// creation des fichiers compose
 		baseCompose := filepath.Join(dockerDir, "compose.yaml")
 		preprodCompose := filepath.Join(dockerDir, "compose.preprod.yaml")
 		prodCompose := filepath.Join(dockerDir, "compose.prod.yaml")
 		if err := writeFileIfAbsent(baseCompose, starter1.ComposeContent(project, cwdName)); err != nil {
 			return err
 		}
-		fmt.Println("- compose.yaml du projet créé -")
+		fmt.Println("- [OK] compose.yaml du projet -")
 
 		if err := writeFileIfAbsent(preprodCompose, starter1.ComposePreprodContent(project, cwdName)); err != nil {
 			return err
 		}
-		fmt.Println("- compose.preprod.yaml du projet angular créé -")
+		fmt.Println("- [OK] compose.preprod.yaml du projet angular -")
 
 		if err := writeFileIfAbsent(prodCompose, starter1.ComposeProdContent(project, cwdName)); err != nil {
 			return err
 		}
-		fmt.Println("- compose.prod.yaml du projet angular créé -")
+		fmt.Println("- [OK] compose.prod.yaml du projet angular -")
 
-		// After Angular creation, add env files and README at project root
-		appEnv := filepath.Join(".env")
-		appEnvDist := filepath.Join(".env.dist")
-		if err := writeFileIfAbsent(appEnv, starter1.EnvRootContent(starter1Port, starter1NodeVer, starter1HostRule)); err != nil {
+		// creation des env root
+		env := filepath.Join(".env")
+		envDist := filepath.Join(".env.dist")
+		if err := writeFileIfAbsent(env, starter1.EnvRootContent(starter1Port, starter1NodeVer, starter1HostRule)); err != nil {
 			return err
 		}
-		if err := writeFileIfAbsent(appEnvDist, starter1.EnvRootContent(starter1Port, starter1NodeVer, starter1HostRule)); err != nil {
+		if err := writeFileIfAbsent(envDist, starter1.EnvRootContent(starter1Port, starter1NodeVer, starter1HostRule)); err != nil {
 			return err
 		}
 
-		fmt.Println("- Création des .env root -")
+		fmt.Println("- [OK] .env root -")
 
+		// creation des env app
+		appEnv := filepath.Join(appDir, ".env")
+		appEnvDist := filepath.Join(appDir, ".env.dist")
+		if err := writeFileIfAbsent(appEnv, starter1.EnvAppContent()); err != nil {
+			return err
+		}
+		if err := writeFileIfAbsent(appEnvDist, starter1.EnvAppContent()); err != nil {
+			return err
+		}
+
+		fmt.Println("- [OK] app/.env -")
+
+		// ceration du readme
 		readme := filepath.Join("README.md")
-		if err := writeFileIfAbsent(readme, appReadme(project)); err != nil {
+		if err := writeFileAlways(readme, starter1.ReadmeContent(project)); err != nil {
 			return err
 		}
+
+		fmt.Println("- [OK] README.md -")
+
+		// creation du makefile
+		makefile := filepath.Join("Makefile")
+		if err := writeFileIfAbsent(makefile, starter1.MakefileContent()); err != nil {
+			return err
+		}
+
+		fmt.Println("- [OK] Makefile -")
+
+		// creation du makefile
+		entrypoint := filepath.Join(appDir, "entrypoint.sh")
+		if err := writeFileIfAbsent(entrypoint, starter1.EntrypointShContent()); err != nil {
+			return err
+		}
+
+		fmt.Println("- [OK] app/entrypoint.sh -")
 
 		fmt.Println("- Fichiers générés:")
 		fmt.Printf("  %s\n", dockerfilePath)
 		fmt.Printf("  %s\n", baseCompose)
 		fmt.Printf("  %s\n", preprodCompose)
 		fmt.Printf("  %s\n", prodCompose)
+		fmt.Printf("  %s\n", env)
+		fmt.Printf("  %s\n", envDist)
 		fmt.Printf("  %s\n", appEnv)
 		fmt.Printf("  %s\n", appEnvDist)
 		fmt.Printf("  %s\n", readme)
+		fmt.Printf("  %s\n", makefile)
+		fmt.Printf("  %s\n", entrypoint)
 
 		fmt.Println()
-		// Preflight Docker/Compose and network guidance
+
 		printDockerHints(project)
 
 		fmt.Println("Next steps:")
+
 		composeCmd := chooseComposeCmd()
 		fmt.Printf("- cd %s/docker && APP_ENV=dev %s -f compose.yaml up --build\n", project, composeCmd)
 		return nil
@@ -193,6 +232,14 @@ func ensureDir(path string) error {
 	if err := os.MkdirAll(path, 0o755); err != nil {
 		return fmt.Errorf("création du dossier %s: %w", path, err)
 	}
+	return nil
+}
+
+func writeFileAlways(path, content string) error {
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("écriture du fichier %s: %w", path, err)
+	}
+	fmt.Printf("  (écrasé) %s\n", path)
 	return nil
 }
 
@@ -225,31 +272,7 @@ func askYesNo(prompt string, defaultNo bool) bool {
 	}
 }
 
-func composeContent(project, appDir string) string {
-	// Compose file placed in <project>/docker/, paths are relative to that
-	return starter1.ComposeContent(project, appDir)
-}
-
-func appEnvContent(project string, port int, nodeVer, hostRule string) string {
-	if port == 0 {
-		port = 4200
-	}
-	if nodeVer == "" {
-		nodeVer = "20"
-	}
-	if hostRule == "" {
-		hostRule = fmt.Sprintf("Host('%s.localhost')", project)
-	}
-	return fmt.Sprintf(`# Environnement de l'application Angular SSR
-APP_ENV=dev
-NODE_VERSION=%s
-PORT=%d
-# Exemple: Host('%s.localhost') ou HostRegexp('%s.{domain}')
-HOST_TRAEFIK_APP=%s
-`, nodeVer, port, project, project, hostRule)
-}
-
-func appReadme(project string) string {
+func contentReadme(project string) string {
 	return fmt.Sprintf(`# %s (Angular SSR Starter)
 
 Ce dossier contient le code de l'application Angular.
@@ -288,8 +311,8 @@ func runAngularCreate(projectName, workdir string) error {
 	}
 
 	// Utilise Angular CLI directement si présent
-    cmd := exec.Command("ng", "new", projectName, "--ssr")
-    cmd.Dir = workdir
+	cmd := exec.Command("ng", "new", projectName, "--ssr", "--skip-git")
+	cmd.Dir = workdir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -299,12 +322,12 @@ func runAngularCreate(projectName, workdir string) error {
 		if !hasNpx {
 			return fmt.Errorf("échec 'ng new'. Et 'npx' n'est pas disponible. Installez Angular CLI: npm install -g @angular/cli (ou installez npx)")
 		}
-        fallback := exec.Command("npx", "-y", "@angular/cli@latest", "new", projectName, "--ssr")
-        fallback.Dir = workdir
-        fallback.Stdout = os.Stdout
-        fallback.Stderr = os.Stderr
-        fallback.Stdin = os.Stdin
-        if err2 := fallback.Run(); err2 != nil {
+		fallback := exec.Command("npx", "-y", "@angular/cli@latest", "new", projectName, "--ssr", "--skip-git")
+		fallback.Dir = workdir
+		fallback.Stdout = os.Stdout
+		fallback.Stderr = os.Stderr
+		fallback.Stdin = os.Stdin
+		if err2 := fallback.Run(); err2 != nil {
 			return fmt.Errorf("'ng' et 'npx' ont échoué: %v / %v. Guide: installer Node.js >= 18 et Angular CLI: npm install -g @angular/cli", err, err2)
 		}
 	}
@@ -317,23 +340,50 @@ func hasCommand(name string) bool {
 }
 
 func hasDocker() bool {
-	return hasCommand("docker")
+	if !hasCommand("docker") {
+		fmt.Println("[warn] Docker introuvable. Installez Docker Desktop / Docker Engine.")
+		return false
+	}
+	fmt.Println("[ok] Docker est présent.")
+	return true
 }
 
 func hasDockerCompose() (bool, bool) {
-	// Returns (hasDockerComposeSubcommand, hasDockerComposeBinary)
+	// pas de docker
 	if !hasDocker() {
 		return false, false
 	}
-	// Try docker compose
+	// essaie docker compose
 	cmd := exec.Command("docker", "compose", "version")
-	if err := cmd.Run(); err == nil {
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	err := cmd.Run()
+	if err == nil {
+		lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+		for _, line := range lines {
+			fmt.Printf("[ok] %s\n", line)
+		}
 		return true, false
 	}
-	// Legacy docker-compose binary
+	// essaie ancien commande docker compose
 	if hasCommand("docker-compose") {
-		return false, true
+		cmd2 := exec.Command("docker-compose", "--version")
+		var out2 bytes.Buffer
+		cmd2.Stdout = &out2
+		cmd2.Stderr = &out2
+		err2 := cmd2.Run()
+		if err2 == nil {
+			lines := strings.Split(strings.TrimSpace(out2.String()), "\n")
+			for _, line := range lines {
+				fmt.Printf("[ok] %s\n", line)
+			}
+			fmt.Println("[warn] Vous avez une ancienne version de docker-compose")
+			return false, true
+		}
+		fmt.Println("[warn] Vous avez une ancienne version de docker-compose")
 	}
+	fmt.Println("[warn] 'docker compose' ou 'docker-compose' introuvable.")
 	return false, false
 }
 
@@ -357,6 +407,7 @@ func dockerNetworkExists(name string) bool {
 	return cmd.Run() == nil
 }
 
+// printDockerHints check docker et le reseau externe
 func printDockerHints(project string) {
 	network := fmt.Sprintf("%s-nseven", project)
 	hasSub, hasBin := hasDockerCompose()
@@ -368,6 +419,18 @@ func printDockerHints(project string) {
 		fmt.Println("[warn] 'docker compose' ou 'docker-compose' introuvable. Installez le plugin Compose ou utilisez Docker Desktop récent.")
 	}
 	if !dockerNetworkExists(network) {
-		fmt.Printf("[info] Réseau externe '%s' absent. Créez-le avant de lancer: docker network create %s\n", network, network)
+		fmt.Printf("[INFO] Réseau externe '%s' absent. Créez-le avant de lancer: docker network create %s\n", network, network)
+		if askYesNo(fmt.Sprintf("  Voulez vous creer le reseau %v => %v ? [o/N]: ", network), true) {
+			cmd := exec.Command("docker", "network", "create", network)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				fmt.Printf("[ERROR] Échec de la création du réseau '%s': %v\n", network, err)
+			} else {
+				fmt.Printf("[OK] Réseau '%s' créé avec succès.\n", network)
+			}
+		} else {
+			fmt.Printf("[INFO] Réseau '%s' non créé. Pensez à l'initialiser plus tard:\n  docker network create %s\n", network, network)
+		}
 	}
 }
