@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nsevendev/starter/internal/docker"
-	"github.com/nsevendev/starter/internal/framework"
+	"github.com/nsevendev/starter/internal/projets/framework"
 	"github.com/nsevendev/starter/internal/projets/starter1"
 	"github.com/nsevendev/starter/internal/tools"
 	"github.com/spf13/cobra"
@@ -101,7 +101,7 @@ var starter1Cmd = &cobra.Command{
 
 		// creation du projet angular
 		fmt.Printf("- Lancement Angular CLI dans %s: ng new %s --ssr \n", project, project)
-		if err := framework.RunAngularCreate(project, wd); err != nil {
+		if err := framework.RunAngularSsrCreate(project, wd); err != nil {
 			return fmt.Errorf("échec de la création Angular: %w", err)
 		}
 
@@ -190,6 +190,35 @@ var starter1Cmd = &cobra.Command{
 
 		fmt.Println("- [OK] app/entrypoint.sh -")
 
+		// create CI/CD files
+		ciDir := filepath.Join(".github", "workflows")
+		if err := tools.EnsureDir(ciDir); err != nil {
+			return err
+		}
+		workflowPath := filepath.Join(ciDir, "preprod.yml")
+		if err := tools.WriteFileIfAbsent(workflowPath, starter1.GithubActionPreprodStarter1Content(project)); err != nil {
+			return err
+		}
+		fmt.Println("- [OK] .github/workflows/preprod.yml -")
+
+		prodWorkflowPath := filepath.Join(ciDir, "prod.yml")
+		if err := tools.WriteFileIfAbsent(prodWorkflowPath, starter1.GithubActionProdStarter1Content(project)); err != nil {
+			return err
+		}
+		fmt.Println("- [OK] .github/workflows/prod.yml -")
+
+		prWorkflowPath := filepath.Join(ciDir, "pr-validation.yml")
+		if err := tools.WriteFileIfAbsent(prWorkflowPath, starter1.GithubActionPRValidationContent(project)); err != nil {
+			return err
+		}
+		fmt.Println("- [OK] .github/workflows/pr-validation.yml -")
+
+		releaserc := filepath.Join(".releaserc.json")
+		if err := tools.WriteFileIfAbsent(releaserc, starter1.SemanticReleaseConfigContent(project)); err != nil {
+			return err
+		}
+		fmt.Println("- [OK] .releaserc.json -")
+
 		fmt.Println("- Fichiers générés:")
 		fmt.Printf("  %s\n", dockerfilePath)
 		fmt.Printf("  %s\n", baseCompose)
@@ -202,15 +231,18 @@ var starter1Cmd = &cobra.Command{
 		fmt.Printf("  %s\n", readme)
 		fmt.Printf("  %s\n", makefile)
 		fmt.Printf("  %s\n", entrypoint)
+		fmt.Printf("  %s\n", workflowPath)
+		fmt.Printf("  %s\n", prodWorkflowPath)
+		fmt.Printf("  %s\n", prWorkflowPath)
+		fmt.Printf("  %s\n", releaserc)
 
 		fmt.Println()
 
 		docker.PrintDockerHints(project)
 
-		fmt.Println("Next steps:")
+		fmt.Println("- Projet Angular SSR créé avec succès -")
+		fmt.Println("- utiliser les commandes make pour commencer à dev ... -")
 
-		composeCmd := docker.ChooseComposeCmd()
-		fmt.Printf("- cd %s/docker && APP_ENV=dev %s -f compose.yaml up --build\n", project, composeCmd)
 		return nil
 	},
 }

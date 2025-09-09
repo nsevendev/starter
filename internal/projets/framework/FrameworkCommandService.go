@@ -8,9 +8,9 @@ import (
 	"os/exec"
 )
 
-// RunAngularCreate exécute la commande Angular CLI pour créer un nouveau projet avec SSR
+// RunAngularSsrCreate exécute la commande Angular CLI pour créer un nouveau projet avec SSR
 // Utilise 'ng' si disponible, sinon 'npx @angular/cli@latest'
-func RunAngularCreate(projectName, workdir string) error {
+func RunAngularSsrCreate(projectName, workdir string) error {
 	hasNg := docker.HasCommand("ng")
 	hasNpx := docker.HasCommand("npx")
 

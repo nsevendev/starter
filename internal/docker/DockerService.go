@@ -18,10 +18,10 @@ func HasCommand(name string) bool {
 // HasDocker checks si Docker est installé
 func HasDocker() bool {
 	if !HasCommand("docker") {
-		fmt.Println("[warn] Docker introuvable. Installez Docker Desktop / Docker Engine.")
+		fmt.Println("[WARN] Docker introuvable. Installez Docker Desktop / Docker Engine.")
 		return false
 	}
-	fmt.Println("[ok] Docker est présent.")
+	fmt.Println("[OK] Docker est présent.")
 	return true
 }
 
@@ -40,7 +40,7 @@ func HasDockerCompose() (bool, bool) {
 	if err == nil {
 		lines := strings.Split(strings.TrimSpace(out.String()), "\n")
 		for _, line := range lines {
-			fmt.Printf("[ok] %s\n", line)
+			fmt.Printf("[OK] %s\n", line)
 		}
 		return true, false
 	}
@@ -54,14 +54,14 @@ func HasDockerCompose() (bool, bool) {
 		if err2 == nil {
 			lines := strings.Split(strings.TrimSpace(out2.String()), "\n")
 			for _, line := range lines {
-				fmt.Printf("[ok] %s\n", line)
+				fmt.Printf("[OK] %s\n", line)
 			}
-			fmt.Println("[warn] Vous avez une ancienne version de docker-compose")
+			fmt.Println("[WARN] Vous avez une ancienne version de docker-compose")
 			return false, true
 		}
-		fmt.Println("[warn] Vous avez une ancienne version de docker-compose")
+		fmt.Println("[WARN] Vous avez une ancienne version de docker-compose")
 	}
-	fmt.Println("[warn] 'docker compose' ou 'docker-compose' introuvable.")
+	fmt.Println("[WARN] 'docker compose' ou 'docker-compose' introuvable.")
 	return false, false
 }
 
