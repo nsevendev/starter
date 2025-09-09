@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nsevendev/starter/internal/docker"
+	"github.com/nsevendev/starter/internal/framework"
 	"github.com/nsevendev/starter/internal/projets/starter1"
 	"github.com/nsevendev/starter/internal/tools"
 	"github.com/spf13/cobra"
@@ -100,7 +101,7 @@ var starter1Cmd = &cobra.Command{
 
 		// creation du projet angular
 		fmt.Printf("- Lancement Angular CLI dans %s: ng new %s --ssr \n", project, project)
-		if err := tools.RunAngularCreate(project, wd); err != nil {
+		if err := framework.RunAngularCreate(project, wd); err != nil {
 			return fmt.Errorf("échec de la création Angular: %w", err)
 		}
 
