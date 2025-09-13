@@ -1,9 +1,7 @@
 package stage1
 
-import "fmt"
-
 func MakefileContent() string {
-	return fmt.Sprintf(`
+	return `
 -include .env
 
 # Redefinir MAKEFILE_LIST pour qu'il ne contienne que le Makefile
@@ -71,5 +69,5 @@ taff: ## Lance le test du fichier donné de l'app (usage: make taff file=pathduf
 tafc: ## Lance tous les tests de l'app en mode CI (headless)
 	$(DOCKER_COMPOSE) exec app npm run test:ci
 
-`)
+`
 }
