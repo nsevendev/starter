@@ -1,9 +1,9 @@
-package starter1
+package stage1
 
 import "fmt"
 
 func DockerfileContent(nodeVer string) string {
-	return fmt.Sprintf(`# -------------------------------------------------------------------
+    return fmt.Sprintf(`# -------------------------------------------------------------------
 # Étape commune : base Node
 # -------------------------------------------------------------------
 ARG NODE_VERSION=%v
@@ -12,6 +12,8 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends bash \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
+RUN npm install -g npm
+RUN npm install -g @angular/cli
 
 # -------------------------------------------------------------------
 # Étape 1 : développement (montage du code, aucune copie au build)
@@ -26,7 +28,6 @@ RUN apt-get update && apt-get install -y \
     libxrender1 libxss1 libxtst6 xdg-utils chromium \
  && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g @angular/cli
 ENV CHROME_BIN=/usr/bin/chromium
 COPY package*.json ./
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
@@ -38,11 +39,13 @@ CMD ["npm", "start"]
 # Étape 2 : construction (préproduction et production)
 # -------------------------------------------------------------------
 FROM base AS build
-ENV NODE_ENV=production
+# Important: Tailwind (via @tailwindcss/postcss) est une devDependency
+# On force l'environnement en développement pour garantir son installation
+ENV NODE_ENV=development
 COPY package*.json ./
-RUN npm ci --omit=dev
-COPY .. .
-RUN npm run build && npm run build:ssr
+RUN npm ci
+COPY . .
+RUN npx ng build --configuration production
 
 # -------------------------------------------------------------------
 # Étape 3 : exécution (préproduction et production) — image identique
@@ -50,8 +53,8 @@ RUN npm run build && npm run build:ssr
 FROM node:${NODE_VERSION}-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
-COPY --from=build /app/dist/server ./server
-COPY --from=build /app/dist/browser ./browser
+COPY --from=build /app/dist/app/server ./server
+COPY --from=build /app/dist/app/browser ./browser
 EXPOSE 4000
 # Lancement du serveur de rendu côté serveur
 CMD ["node", "server/server.mjs"]

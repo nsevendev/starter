@@ -23,7 +23,7 @@ func RunAngularSsrCreate(projectName, workdir string) error {
 		}
 	}
 
-	// Utilise Angular CLI directement si présent
+	// creation commande installation projet Angular SSR avec le cli
 	cmd := exec.Command("ng", "new", projectName, "--ssr", "--skip-git")
 	cmd.Dir = workdir
 	cmd.Stdout = os.Stdout
@@ -41,7 +41,7 @@ func RunAngularSsrCreate(projectName, workdir string) error {
 		fallback.Stderr = os.Stderr
 		fallback.Stdin = os.Stdin
 		if err2 := fallback.Run(); err2 != nil {
-			return fmt.Errorf("'ng' et 'npx' ont échoué: %v / %v. Guide: installer Node.js >= 18 et Angular CLI: npm install -g @angular/cli", err, err2)
+			return fmt.Errorf("'ng' et 'npx' ont échoué: %v / %v. Guide: installer Node.js >= 22 et Angular CLI: npm install -g @angular/cli", err, err2)
 		}
 	}
 	return nil

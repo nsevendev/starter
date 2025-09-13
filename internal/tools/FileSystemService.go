@@ -41,7 +41,7 @@ func WriteFileIfAbsent(path, content string) error {
 		return nil
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return fmt.Errorf("écriture du fichier %s: %w", path, err)
+		return fmt.Errorf("erreur écriture du fichier %s: %w", path, err)
 	}
 	return nil
 }

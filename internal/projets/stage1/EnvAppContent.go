@@ -1,4 +1,4 @@
-package starter1
+package stage1
 
 import "fmt"
 

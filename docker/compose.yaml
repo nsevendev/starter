@@ -1,4 +1,4 @@
-name: ns-cli
+name: starter-cli
 services:
   app:
     build:
