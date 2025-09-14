@@ -250,6 +250,15 @@ var starter1Cmd = &cobra.Command{
 			}
 		}
 
+		ghrCleanupPath := filepath.Join(ciDir, "ghr-cleanup.yml")
+		{
+			if err := tools.WriteFileIfAbsent(ghrCleanupPath, stage1.GithubActionCleanGhrContent(repoGit)); err != nil {
+				fmt.Println("- [KO] création .github/workflows/ghr-cleanup.yml -")
+			} else {
+				fmt.Println("- [OK] création .github/workflows/ghr-cleanup.yml -")
+			}
+		}
+
 		// modification angular.json
 		{
 			if err := stage1.PatchAngularJSON(stage1.PatchOptions{

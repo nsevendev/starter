@@ -518,189 +518,55 @@ jobs:
 `, nameFolderProject)
 }
 
-// SemanticReleaseConfigContent returns a .releaserc.json tailored for prod
-// so semantic-release updates CHANGELOG.md and package files inside the app folder.
-func SemanticReleaseConfigContent(project string) string {
-	return fmt.Sprintf(`{
-  "branches": ["main"],
-  "tagFormat": "v${version}",
-  "plugins": [
-    "@semantic-release/commit-analyzer",
-    "@semantic-release/release-notes-generator",
-    ["@semantic-release/changelog", {"changelogFile": "CHANGELOG.md"}],
-    "@semantic-release/npm",
-    ["@semantic-release/git", {
-      "assets": [
-        "CHANGELOG.md",
-        "%[1]s/package.json",
-        "%[1]s/package-lock.json"
-      ],
-      "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
-    }],
-    "@semantic-release/github"
-  ]
-}
-`, project)
-}
-
-// GithubActionPRValidationContent returns the GitHub Actions workflow (YAML)
-// to validate PRs with lint/build/test in the app directory.
-func GithubActionPRValidationContent(project string) string {
-	return fmt.Sprintf(`name: PR Validation
-
+func GithubActionCleanGhrContent(nameFolderProject string) string {
+	return fmt.Sprintf(`name: ghcr-cleanup
 on:
-  pull_request:
+  schedule:
+    - cron: "0 3 * * *"   # tous les jours à 03:00 UTC
   workflow_dispatch:
 
-concurrency:
-  group: pr-validation-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  validate:
+  # ===== Nettoyage pour l'image APP =====
+  cleanup-app:
     runs-on: ubuntu-latest
-    container: node:20
+    env:
+      OWNER: ${{ github.repository_owner }}
+      OWNER_KIND: users
+      PACKAGE: %v/app
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Ensure jq is available
+        run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Install dependencies
-        working-directory: ./%[1]s
-        run: npm ci
-
-      - name: Lint (if present)
-        working-directory: ./%[1]s
-        run: npm run -s lint --if-present
-
-      - name: Build (if present)
-        working-directory: ./%[1]s
-        run: npm run -s build --if-present
-
-      - name: Test (prefer CI script)
-        working-directory: ./%[1]s
+      - name: Delete untagged versions (APP)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          npm run -s test:ci --if-present || npm test
-`, project)
+          set -euo pipefail
+          PKG_ENC="$(printf '%%s' "$PACKAGE" | jq -sRr @uri)"
+          API_BASE="https://api.github.com/${OWNER_KIND}/${OWNER}/packages/container/${PKG_ENC}/versions"
+          PAGE=1
+          DELETED=0
+
+          while true; do
+            echo "Fetching page ${PAGE}..."
+            RESP=$(curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              "${API_BASE}?per_page=100&page=${PAGE}")
+
+            COUNT=$(echo "${RESP}" | jq 'length')
+            [ "${COUNT}" -eq 0 ] && break
+
+            IDS=$(echo "${RESP}" | jq -r '.[] | select(.metadata.container.tags | length == 0) | .id')
+            if [ -n "${IDS}" ]; then
+              for id in ${IDS}; do
+                echo "Deleting untagged version id=${id}"
+                curl -fsSL -X DELETE -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+                  "${API_BASE}/${id}" >/dev/null
+                DELETED=$((DELETED+1))
+              done
+            fi
+            PAGE=$((PAGE+1))
+          done
+
+          echo "Done. Deleted ${DELETED} untagged versions for ${PACKAGE}."
+`, nameFolderProject)
 }
-
-/*
-
-	return fmt.Sprintf(`name: CI/CD Preprod
-
-on:
-  push:
-    branches: ["preprod"]
-  workflow_dispatch:
-
-concurrency:
-  group: preprod-deploy
-  cancel-in-progress: true
-
-jobs:
-  test:
-    name: Run tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Create .env files from dist
-        run: |
-          # Créer les fichiers .env à partir des .env.dist
-          find . -name "*.env.dist" -exec sh -c 'cp "$1" "${1%%.dist}"' _ {} \;
-
-      - name: Create Docker networks
-        run: |
-          # Créer le réseau %v-nseven requis par docker-compose
-          docker network create %v-nseven || true
-
-      - name: Start services in dev mode
-        run: |
-          # Lancer le projet en mode dev
-          make up
-
-          # Copie le fichier environment.dist et creer le fichier environment.ts
-          # cp app/src/environments/environment.dist app/src/environments/environment.ts
-
-          # Attendre que les services soient prêts
-          sleep 30
-
-      - name: Run frontend tests
-        run: |
-          # Lancer tous les tests frontend
-          make tafc
-
-      - name: Check logs on failure
-        if: failure()
-        run: |
-          echo "=== APP Logs ==="
-          make lapp
-
-      - name: Cleanup
-        if: always()
-        run: |
-          make down || true
-
-  deploy:
-    needs: test
-    name: Deploy to Ionos Preprod
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          # Write SSH key with proper formatting
-          printf '%%s\n' "${{ secrets.IONOS_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          chmod 700 ~/.ssh
-
-          # Debug: Check key format and size
-          echo "SSH key file size:"
-          wc -c ~/.ssh/id_rsa
-          echo "SSH key first line:"
-          head -1 ~/.ssh/id_rsa
-          echo "SSH key last line:"
-          tail -1 ~/.ssh/id_rsa
-
-          # Test SSH key format
-          ssh-keygen -l -f ~/.ssh/id_rsa
-
-          # Add server to known hosts
-          ssh-keyscan -H ${{ secrets.IONOS_HOST }} >> ~/.ssh/known_hosts
-
-          # Test SSH connection with verbose output
-          ssh -v -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${{ secrets.IONOS_USER }}@${{ secrets.IONOS_HOST }} "echo 'SSH connection successful'"
-
-      - name: Deploy to server
-        run: |
-          ssh ${{ secrets.IONOS_USER }}@${{ secrets.IONOS_HOST }} << 'EOF'
-            set -e
-
-            # Navigate to project directory
-            cd ~/projects/test/%v
-
-            # Pull latest changes (safe even if already on preprod branch)
-            git fetch origin
-            git checkout preprod || git checkout -b preprod origin/preprod
-            git pull origin preprod
-
-         #[ -f app/src/environments/environment.ts ] || cp app/src/environments/environment.dist app/src/environments/environment.ts
-
-            # Deploy with Docker
-            make down || true
-            make upb
-
-            # Verify deployment
-            sleep 10
-            docker compose --env-file .env -f docker/compose.preprod.yaml logs --tail=20 app
-
-          EOF
-
-`, appDir, project, appDir)
-
-*/
