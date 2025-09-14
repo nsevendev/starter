@@ -3,8 +3,7 @@ package stage1
 import "fmt"
 
 func EntrypointShContent() string {
-	return fmt.Sprintf(`
-#!/bin/sh
+	return fmt.Sprintf(`#!/bin/sh
 set -e
 
 if [ ! -d "node_modules" ] && [ -f "package-lock.json" ]; then

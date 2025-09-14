@@ -20,16 +20,16 @@ var (
 )
 
 func init() {
-    rootCmd.AddCommand(starter1Cmd)
+	rootCmd.AddCommand(starter1Cmd)
 
-    // Flags
-    starter1Cmd.Flags().StringVar(&hostTraefik, "host", "", "host traefik => format: Host(``) (requis) ")
-    _ = starter1Cmd.MarkFlagRequired("host")
-    starter1Cmd.Flags().StringVar(&repoGit, "repo", "", "npm du repository git (requis) ")
-    _ = starter1Cmd.MarkFlagRequired("repo")
-    // allowedhost doit être une liste et alimenter la variable allowedHost
-    starter1Cmd.Flags().StringSliceVar(&allowedHost, "allowedhost", nil, "allowed host pour angular.json (requis)")
-    _ = starter1Cmd.MarkFlagRequired("allowedhost")
+	// Flags
+	starter1Cmd.Flags().StringVar(&hostTraefik, "host", "", "host traefik => format: Host(``) (requis) ")
+	_ = starter1Cmd.MarkFlagRequired("host")
+	starter1Cmd.Flags().StringVar(&repoGit, "repo", "", "npm du repository git (requis) ")
+	_ = starter1Cmd.MarkFlagRequired("repo")
+	// allowedhost doit être une liste et alimenter la variable allowedHost
+	starter1Cmd.Flags().StringSliceVar(&allowedHost, "allowedhost", nil, "allowed host pour angular.json (requis)")
+	_ = starter1Cmd.MarkFlagRequired("allowedhost")
 }
 
 // starter1Cmd represents the command to create the Angular SSR starter
@@ -186,13 +186,29 @@ var starter1Cmd = &cobra.Command{
 			}
 		}
 
-		// creation du makefile
+		// creation du entrypoint
 		entrypoint := filepath.Join(pathFolderApp, "entrypoint.sh")
 		{
 			if err := tools.WriteFileIfAbsent(entrypoint, stage1.EntrypointShContent()); err != nil {
 				fmt.Println("- [KO] création app/entrypoint.sh -")
 			} else {
 				fmt.Println("- [OK] création app/entrypoint.sh -")
+				// passe le fichier en executable
+				if err := os.Chmod(entrypoint, 0o755); err != nil {
+					fmt.Println("- [KO] chmod +x app/entrypoint.sh -")
+				} else {
+					fmt.Println("- [OK] chmod +x app/entrypoint.sh -")
+				}
+			}
+		}
+
+		// creation du .gitignore
+		gitignore := filepath.Join(".gitignore")
+		{
+			if err := tools.WriteFileAlways(gitignore, stage1.GitignoreRootContent()); err != nil {
+				fmt.Println("- [KO] création .gitignore -")
+			} else {
+				fmt.Println("- [OK] création .gitignore -")
 			}
 		}
 
@@ -234,16 +250,16 @@ var starter1Cmd = &cobra.Command{
 			}
 		}
 
-        // modification angular.json
-        {
-            if err := stage1.PatchAngularJSON(stage1.PatchOptions{
-                // angular.json est dans le dossier de l'app
-                AngularJSONPath: filepath.Join(pathFolderApp, "angular.json"),
-                ProjectOldName:  "app",
-                ProjectNewName:  "app",
-                OutputPath:      "dist/app",
-                BudgetStyleWarn: "500kB",
-                BudgetStyleErr:  "1MB",
+		// modification angular.json
+		{
+			if err := stage1.PatchAngularJSON(stage1.PatchOptions{
+				// angular.json est dans le dossier de l'app
+				AngularJSONPath: filepath.Join(pathFolderApp, "angular.json"),
+				ProjectOldName:  "app",
+				ProjectNewName:  "app",
+				OutputPath:      "dist/app",
+				BudgetStyleWarn: "500kB",
+				BudgetStyleErr:  "1MB",
 				Serve: &stage1.ServeOptions{
 					Host:         "0.0.0.0",
 					Port:         3000,
@@ -257,15 +273,15 @@ var starter1Cmd = &cobra.Command{
 			fmt.Println("- [OK] Modifcation app/angular.json -")
 		}
 
-        // modification package.json
-        {
-            // package.json est dans le dossier de l'app
-            if err := stage1.ReplacePackageJSONScripts(filepath.Join(pathFolderApp, "package.json"), map[string]string{
-                "ng":            "ng",
-                "start":         "ng serve",
-                "build":         "ng build --configuration production",
-                "build:ssr":     "ng build --configuration production",
-                "watch":         "ng build --watch --configuration development",
+		// modification package.json
+		{
+			// package.json est dans le dossier de l'app
+			if err := stage1.ReplacePackageJSONScripts(filepath.Join(pathFolderApp, "package.json"), map[string]string{
+				"ng":            "ng",
+				"start":         "ng serve",
+				"build":         "ng build --configuration production",
+				"build:ssr":     "ng build --configuration production",
+				"watch":         "ng build --watch --configuration development",
 				"test":          "ng test --browsers=ChromeHeadlessNoSandbox --watch --poll=2000",
 				"test:ci":       "ng test --watch=false --browsers=ChromeHeadlessNoSandbox",
 				"serve:ssr:app": "node dist/app/server/server.mjs",
