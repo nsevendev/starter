@@ -5,11 +5,26 @@ import "fmt"
 func ReadmeContent(nameApp string) string {
 	return fmt.Sprintf(`# %v
 
-- utilisation du projet taper la commande make
+- utilisation du projet: taper la commande make
 
 - app.dockerfile => dockerfile pour l'application angular
 - compose.yaml => docker dev
 - compose.preprod.yaml => docker preprod
 - compose.prod.yaml => docker prod
+
+# erreur éventuelle
+- Error: NG0401:
+Mettre ce code dans le fichier main.server.ts
+(probleme de cli angular qui ne met pas le type BootstrapContext dans le main.server.ts)
+~~~ts
+import { bootstrapApplication, type BootstrapContext } from '@angular/platform-browser';
+import { App } from './app/app';
+import { config } from './app/app.config.server';
+
+const bootstrap = (context: BootstrapContext) => bootstrapApplication(App, config, context);
+
+export default bootstrap;
+~~~
+
 `, nameApp)
 }
