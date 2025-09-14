@@ -1,16 +1,15 @@
 package cmd
 
 import (
-	"errors"
-	"fmt"
-	"github.com/nsevendev/starter/internal/docker"
-	"github.com/nsevendev/starter/internal/projets/framework"
-	"github.com/nsevendev/starter/internal/projets/stage1"
-	"github.com/nsevendev/starter/internal/tools"
-	"github.com/spf13/cobra"
-	"os"
-	"os/exec"
-	"path/filepath"
+    "errors"
+    "fmt"
+    "github.com/nsevendev/starter/internal/docker"
+    "github.com/nsevendev/starter/internal/projets/framework"
+    "github.com/nsevendev/starter/internal/projets/stage1"
+    "github.com/nsevendev/starter/internal/tools"
+    "github.com/spf13/cobra"
+    "os"
+    "path/filepath"
 )
 
 var (
@@ -300,38 +299,35 @@ var starter1Cmd = &cobra.Command{
 			fmt.Println("- [OK] Modifcation app/package.json -")
 		}
 
-		// installation tailwindcss
-		// npm i -D @tailwindcss/postcss dans le dossier de l'app
-		{
-			cmd := exec.Command("bash", "-lc", fmt.Sprintf("cd %s && npm install -D @tailwindcss/postcss", pathFolderApp))
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("échec installation tailwindcss/postcss: %w", err)
-			}
-			fmt.Println("- [OK] installation @tailwindcss/postcss -")
+		// installation et configuration Tailwind (postcss + styles.css)
+		if err := framework.InstallTailwindAndSetup(pathFolderApp); err != nil {
+			return fmt.Errorf("échec configuration Tailwind: %w", err)
 		}
 
-		// créer postcss.config.js à la racine de l'app
+		// delete node_modules et package-lock.json pour eviter les conflits au premier lancement
+		{
+			nodeModulesPath := filepath.Join(pathFolderApp, "node_modules")
+			if _, err := os.Stat(nodeModulesPath); err == nil {
+				if err := os.RemoveAll(nodeModulesPath); err != nil {
+					fmt.Println("- [KO] suppression app/node_modules -")
+				} else {
+					fmt.Println("- [OK] suppression app/node_modules -")
+				}
+			}
+
+			packageLockPath := filepath.Join(pathFolderApp, "package-lock.json")
+			if _, err := os.Stat(packageLockPath); err == nil {
+				if err := os.Remove(packageLockPath); err != nil {
+					fmt.Println("- [KO] suppression app/package-lock.json -")
+				} else {
+					fmt.Println("- [OK] suppression app/package-lock.json -")
+				}
+			}
+		}
+
+		// chemins utiles pour l'affichage des fichiers générés
 		postcssConfigPath := filepath.Join(pathFolderApp, "postcss.config.js")
-		{
-			postcssConfig := `module.exports = {\n  plugins: {\n    '@tailwindcss/postcss': {},\n  },\n};\n`
-			if err := os.WriteFile(postcssConfigPath, []byte(postcssConfig), 0o644); err != nil {
-				return fmt.Errorf("échec écriture %s: %w", postcssConfigPath, err)
-			}
-			fmt.Println("- [OK] création app/postcss.config.js -")
-		}
-
-		// s'assurer que src/styles.css importe Tailwind
 		stylesPath := filepath.Join(pathFolderApp, "src", "styles.css")
-		{
-			stylesPath = filepath.Join(pathFolderApp, "src", "styles.css")
-			content := "@import \"tailwindcss\";\n"
-			if err := os.WriteFile(stylesPath, []byte(content), 0o644); err != nil {
-				return fmt.Errorf("échec écriture %s: %w", stylesPath, err)
-			}
-			fmt.Println("- [OK] fichier app/src/styles.css écrasé avec import Tailwind -")
-		}
 
 		fmt.Println("- Fichiers générés:")
 		fmt.Printf("  %s\n", dockerfilePath)
