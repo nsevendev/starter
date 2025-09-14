@@ -1,15 +1,15 @@
 package cmd
 
 import (
-    "errors"
-    "fmt"
-    "github.com/nsevendev/starter/internal/docker"
-    "github.com/nsevendev/starter/internal/projets/framework"
-    "github.com/nsevendev/starter/internal/projets/stage1"
-    "github.com/nsevendev/starter/internal/tools"
-    "github.com/spf13/cobra"
-    "os"
-    "path/filepath"
+	"errors"
+	"fmt"
+	"github.com/nsevendev/starter/internal/docker"
+	"github.com/nsevendev/starter/internal/projets/framework"
+	"github.com/nsevendev/starter/internal/projets/stage1"
+	"github.com/nsevendev/starter/internal/tools"
+	"github.com/spf13/cobra"
+	"os"
+	"path/filepath"
 )
 
 var (
@@ -309,7 +309,7 @@ var starter1Cmd = &cobra.Command{
 			nodeModulesPath := filepath.Join(pathFolderApp, "node_modules")
 			if _, err := os.Stat(nodeModulesPath); err == nil {
 				if err := os.RemoveAll(nodeModulesPath); err != nil {
-					fmt.Println("- [KO] suppression app/node_modules -")
+					fmt.Printf("- [KO] suppression app/node_modules - err: %v \n", err)
 				} else {
 					fmt.Println("- [OK] suppression app/node_modules -")
 				}

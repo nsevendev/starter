@@ -65,19 +65,6 @@ func HasDockerCompose() (bool, bool) {
 	return false, false
 }
 
-// ChooseComposeCmd retourne la commande docker compose appropriée
-func ChooseComposeCmd() string {
-	hasSub, hasBin := HasDockerCompose()
-	switch {
-	case hasSub:
-		return "docker compose"
-	case hasBin:
-		return "docker-compose"
-	default:
-		return "docker compose" // default hint
-	}
-}
-
 // DockerNetworkExists checks if a Docker network exists
 func DockerNetworkExists(name string) bool {
 	if !HasDocker() {
@@ -89,7 +76,7 @@ func DockerNetworkExists(name string) bool {
 
 // PrintDockerHints check docker et le reseau externe
 func PrintDockerHints(project string) {
-	network := fmt.Sprintf("%s-nseven", project)
+	network := "traefik-nseven"
 	hasSub, hasBin := HasDockerCompose()
 
 	if !HasDocker() {
