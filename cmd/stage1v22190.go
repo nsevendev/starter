@@ -1,16 +1,16 @@
 package cmd
 
 import (
-    "errors"
-    "fmt"
-    "github.com/nsevendev/starter/internal/docker"
-    "github.com/nsevendev/starter/internal/projets/framework"
-    "github.com/nsevendev/starter/internal/projets/stage1"
-    "github.com/nsevendev/starter/internal/tools"
-    "github.com/spf13/cobra"
-    "os"
-    "path/filepath"
-    "time"
+	"errors"
+	"fmt"
+	"github.com/nsevendev/starter/internal/docker"
+	"github.com/nsevendev/starter/internal/projets/framework"
+	"github.com/nsevendev/starter/internal/projets/stage1"
+	"github.com/nsevendev/starter/internal/tools"
+	"github.com/spf13/cobra"
+	"os"
+	"path/filepath"
+	"time"
 )
 
 var (
@@ -345,20 +345,22 @@ var starter1Cmd = &cobra.Command{
 				}
 			}
 
-			packageLockPath := filepath.Join(pathFolderApp, "package-lock.json")
-			if _, err := os.Stat(packageLockPath); err == nil {
-				if err := os.Remove(packageLockPath); err != nil {
-					// petit retry simple pour les fichiers aussi
-					time.Sleep(100 * time.Millisecond)
-					if err2 := os.Remove(packageLockPath); err2 != nil {
-						fmt.Printf("- [KO] suppression app/package-lock.json - err: %v\n", err2)
+			/*
+				packageLockPath := filepath.Join(pathFolderApp, "package-lock.json")
+				if _, err := os.Stat(packageLockPath); err == nil {
+					if err := os.Remove(packageLockPath); err != nil {
+						// petit retry simple pour les fichiers aussi
+						time.Sleep(100 * time.Millisecond)
+						if err2 := os.Remove(packageLockPath); err2 != nil {
+							fmt.Printf("- [KO] suppression app/package-lock.json - err: %v\n", err2)
+						} else {
+							fmt.Println("- [OK] suppression app/package-lock.json -")
+						}
 					} else {
 						fmt.Println("- [OK] suppression app/package-lock.json -")
 					}
-				} else {
-					fmt.Println("- [OK] suppression app/package-lock.json -")
 				}
-			}
+			*/
 		}
 
 		// chemins utiles pour l'affichage des fichiers générés

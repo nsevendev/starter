@@ -12,7 +12,7 @@ func ReadmeContent(nameApp string) string {
 - compose.preprod.yaml => docker preprod
 - compose.prod.yaml => docker prod
 
-# erreur éventuelle
+# erreur éventuelle (node 22.19.0 => angular cli 20.2.1
 - Error: NG0401:
 Mettre ce code dans le fichier main.server.ts
 (probleme de cli angular qui ne met pas le type BootstrapContext dans le main.server.ts)
