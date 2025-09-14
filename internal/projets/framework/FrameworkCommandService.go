@@ -1,12 +1,12 @@
 package framework
 
 import (
-    "errors"
-    "fmt"
-    "github.com/nsevendev/starter/internal/docker"
-    "os"
-    "os/exec"
-    "path/filepath"
+	"errors"
+	"fmt"
+	"github.com/nsevendev/starter/internal/docker"
+	"os"
+	"os/exec"
+	"path/filepath"
 )
 
 // RunAngularSsrCreate exécute la commande Angular CLI pour créer un nouveau projet avec SSR
@@ -50,31 +50,33 @@ func RunAngularSsrCreate(projectName, workdir string) error {
 
 // InstallTailwindAndSetup installe @tailwindcss/postcss et configure PostCSS + styles.css dans l'app
 func InstallTailwindAndSetup(appDir string) error {
-    // installation tailwindcss/postcss dans le dossier de l'app
-    cmd := exec.Command("npm", "install", "-D", "@tailwindcss/postcss")
-    cmd.Dir = appDir
-    cmd.Stdout = os.Stdout
-    cmd.Stderr = os.Stderr
-    if err := cmd.Run(); err != nil {
-        return fmt.Errorf("échec installation tailwindcss/postcss: %w", err)
-    }
-    fmt.Println("- [OK] installation @tailwindcss/postcss -")
+	// installation tailwindcss/postcss dans le dossier de l'app
+	cmd := exec.Command("npm", "install", "-D", "@tailwindcss/postcss")
+	cmd.Dir = appDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("échec installation tailwindcss/postcss: %w", err)
+	}
+	fmt.Println("- [OK] installation @tailwindcss/postcss -")
 
-    // créer postcss.config.js à la racine de l'app
-    postcssConfig := "module.exports = {\n  plugins: {\n    '@tailwindcss/postcss': {},\n  },\n};\n"
-    postcssConfigPath := filepath.Join(appDir, "postcss.config.js")
+    // créer postcss.config.json à la racine de l'app
+    // a mettre à la place de la string en dessous { "plugins": { "@tailwindcss/postcss": {} }}
+    // creer un fichier json à la place du js
+    postcssConfig := "{\n  \"plugins\": {\n    \"@tailwindcss/postcss\": {}\n  }\n}\n"
+    postcssConfigPath := filepath.Join(appDir, "postcss.config.json")
     if err := os.WriteFile(postcssConfigPath, []byte(postcssConfig), 0o644); err != nil {
         return fmt.Errorf("échec écriture %s: %w", postcssConfigPath, err)
     }
-    fmt.Println("- [OK] création app/postcss.config.js -")
+    fmt.Println("- [OK] création app/postcss.config.json -")
 
-    // s'assurer que src/styles.css importe Tailwind
-    stylesPath := filepath.Join(appDir, "src", "styles.css")
-    content := "@import \"tailwindcss\";\n"
-    if err := os.WriteFile(stylesPath, []byte(content), 0o644); err != nil {
-        return fmt.Errorf("échec écriture %s: %w", stylesPath, err)
-    }
-    fmt.Println("- [OK] fichier app/src/styles.css écrasé avec import Tailwind -")
+	// s'assurer que src/styles.css importe Tailwind
+	stylesPath := filepath.Join(appDir, "src", "styles.css")
+	content := "@import \"tailwindcss\";\n"
+	if err := os.WriteFile(stylesPath, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("échec écriture %s: %w", stylesPath, err)
+	}
+	fmt.Println("- [OK] fichier app/src/styles.css écrasé avec import Tailwind -")
 
-    return nil
+	return nil
 }
