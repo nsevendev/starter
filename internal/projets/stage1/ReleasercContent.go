@@ -4,7 +4,7 @@ package stage1
 func ReleasercContent() string {
 	return `
 {
-  "branches": ["main"],
+  "branches": ["prod"],
   "plugins": [
     "@semantic-release/commit-analyzer",
     ["@semantic-release/release-notes-generator", { "preset": "conventionalcommits" }],

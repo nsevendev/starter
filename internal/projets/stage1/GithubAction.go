@@ -259,9 +259,9 @@ func GithubActionProdContent(nameFolderProject string) string {
 
 on:
   pull_request:
-    branches: [ "main" ]
+    branches: [ "prod" ]
   push:
-    branches: [ "main" ]
+    branches: [ "prod" ]
 
 concurrency:
   group: main-pipeline
@@ -432,8 +432,8 @@ jobs:
 
             # pull le code main (si tu gardes des fichiers compose/*.yaml dans le repo)
             git fetch origin
-            git checkout main || git checkout -b main origin/main
-            git pull origin main
+            git checkout prod || git checkout -b prod origin/main
+            git pull origin prod
 
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
