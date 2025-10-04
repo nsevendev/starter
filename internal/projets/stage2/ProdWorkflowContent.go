@@ -1,0 +1,271 @@
+package stage2
+
+import "fmt"
+
+func ProdWorkflowContent(nameFolderProject string) string {
+	return fmt.Sprintf(`name: prod
+
+on:
+  pull_request:
+    branches: [ "prod" ]
+  push:
+    branches: [ "prod" ]
+
+concurrency:
+  group: main-pipeline
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Run tests (main)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create .env files from dist
+        run: |
+          find . -name "*.env.dist" -exec sh -c 'cp "$1" "${1%.dist}"' _ {} \;
+
+      - name: Create Docker networks
+        run: docker network create traefik-nseven || true
+
+      - name: Start services in dev mode
+        run: |
+          make up
+          sleep 30
+
+      - name: Run frontend tests
+        run: make tafc
+
+      - name: Check logs on failure
+        if: failure()
+        run: |
+          echo "=== APP Logs ==="
+          make lapp
+
+      - name: Cleanup
+        if: always()
+        run: make down || true
+
+  release:
+    if: github.event_name == 'push'
+    needs: test
+    name: Semantic release (create tag & GitHub Release)
+    runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.semrel.outputs.new_release_published }}
+      tag: ${{ steps.semrel.outputs.new_release_git_tag }}
+      version: ${{ steps.semrel.outputs.new_release_version }}
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # requis par semantic-release
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.19.0
+
+      - name: Semantic Release
+        id: semrel
+        uses: cycjimmy/semantic-release-action@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          dry_run: false
+          # installe les plugins/presets nécessaires avant executer semantic-release
+          extra_plugins: |
+            conventional-changelog-conventionalcommits
+
+      - name: Install semantic-release
+        run: npm i -D semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github conventional-changelog-conventionalcommits
+
+      - name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
+  build_and_push_prod:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_BASE: ghcr.io/${{ github.repository }}
+      TAG_BASE: prod
+      VERSION: ${{ needs.release.outputs.tag }}   # ex: v1.2.3
+    strategy:
+      matrix:
+        service:
+          - name: front
+            context: ./front
+            dockerfile: ./docker/front.dockerfile
+            target: prod
+          - name: api
+            context: ./api
+            dockerfile: ./docker/api.dockerfile
+            target: prod
+            # ajoute d'autres services ici si besoin
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.VERSION }}   # on build exactement le code de la release taguée
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Compute tag timestamp (UTC)
+        run: echo "TAG_TS=$(date -u +%Y.%m.%d-%H%%M)" >> $GITHUB_ENV
+
+      - name: Build & Push ${{ matrix.service.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.dockerfile }}
+          target: ${{ matrix.service.target }}
+          push: true
+          platforms: linux/amd64
+          build-args: |
+            NODE_VERSION=22.19.0
+          tags: |
+            ${{ env.IMAGE_BASE }}/${{ matrix.service.name }}:${{ env.TAG_BASE }}
+            ${{ env.IMAGE_BASE }}/${{ matrix.service.name }}:${{ env.TAG_BASE }}-${{ env.VERSION }}
+            ${{ env.IMAGE_BASE }}/${{ matrix.service.name }}:${{ env.TAG_BASE }}-${{ github.sha }}
+            ${{ env.IMAGE_BASE }}/${{ matrix.service.name }}:${{ env.TAG_BASE }}-${{ env.TAG_TS }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # 4) Déploiement PROD (ne s'exécute que s'il y a une release)
+  deploy_prod:
+    needs: [build_and_push_prod, release]
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_TAG: prod-${{ needs.release.outputs.tag }}  # prod-vX.Y.Z
+    steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          # Write SSH key with proper formatting
+          printf '%%s\n' "${{ secrets.IONOS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          chmod 700 ~/.ssh
+
+          # Debug: Check key format and size
+          echo "SSH key file size:"
+          wc -c ~/.ssh/id_rsa
+          echo "SSH key first line:"
+          head -1 ~/.ssh/id_rsa
+          echo "SSH key last line:"
+          tail -1 ~/.ssh/id_rsa
+
+          # Test SSH key format
+          ssh-keygen -l -f ~/.ssh/id_rsa
+
+          # Add server to known hosts
+          ssh-keyscan -H ${{ secrets.IONOS_HOST }} >> ~/.ssh/known_hosts
+
+          # Test SSH connection with verbose output
+          ssh -v -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${{ secrets.IONOS_USER }}@${{ secrets.IONOS_HOST }} "echo 'SSH connection successful'"
+
+      - name: Deploy on server
+        run: |
+          ssh ${{ secrets.IONOS_USER }}@${{ secrets.IONOS_HOST }} << 'EOF'
+            set -e
+            cd ~/projects/prod/%s
+
+            # pull le code main (si tu gardes des fichiers compose/*.yaml dans le repo)
+            git fetch origin
+            git checkout prod || git checkout -b prod origin/main
+            git pull origin prod
+
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+            export IMAGE_TAG="${{ env.IMAGE_TAG }}"
+
+            make down || true
+            make up
+          EOF
+
+  cleanup_prod_images:
+    name: Cleanup images (safe, prod)
+    needs: [deploy_prod, release]
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    env:
+      TAG_BASE: prod
+      KEEP_TAG: prod-${{ needs.release.outputs.tag || needs.release.outputs.version }}
+    steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          # Write SSH key with proper formatting
+          printf '%%s\n' "${{ secrets.IONOS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          chmod 700 ~/.ssh
+
+          # Debug: Check key format and size
+          echo "SSH key file size:"
+          wc -c ~/.ssh/id_rsa
+          echo "SSH key first line:"
+          head -1 ~/.ssh/id_rsa
+          echo "SSH key last line:"
+          tail -1 ~/.ssh/id_rsa
+
+          # Test SSH key format
+          ssh-keygen -l -f ~/.ssh/id_rsa
+
+          # Add server to known hosts
+          ssh-keyscan -H ${{ secrets.IONOS_HOST }} >> ~/.ssh/known_hosts
+
+          # Test SSH connection with verbose output
+          ssh -v -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${{ secrets.IONOS_USER }}@${{ secrets.IONOS_HOST }} "echo 'SSH connection successful'"
+
+      - name: Safe cleanup on server
+        run: |
+          ssh ${{ secrets.IONOS_USER }}@${{ secrets.IONOS_HOST }} << 'EOF'
+            set -e
+            REPO="ghcr.io/${{ github.repository }}/front"
+            TAG_BASE="${TAG_BASE}"
+            KEEP_REF="$REPO:${KEEP_TAG}"
+
+            echo "== Safe cleanup starting =="
+            echo "TAG_BASE=$TAG_BASE"
+            echo "KEEP_REF=$KEEP_REF"
+
+            # Liste des IDs d'images réellement utilisées par des conteneurs
+            IN_USE_IDS=$(docker ps --format '{{.Image}}' | xargs -r docker inspect --format '{{.Image}}' 2>/dev/null | sort -u || true)
+            echo "In-use image IDs:"
+            echo "$IN_USE_IDS"
+
+            # Prune léger: ne supprime que les couches orphelines
+            docker image prune -f || true
+
+            # Parcours des tags correspondants (prod-* ici), en évitant les images en cours d'utilisation et le tag courant
+            docker image ls "$REPO" --format '{{.Repository}}:{{.Tag}} {{.ID}}' \
+            | awk -v base="$TAG_BASE" '$1 ~ (":" base "-") {print $1, $2}' \
+            | while read REF ID; do
+                if [ "$REF" = "$KEEP_REF" ]; then
+                  echo "Keep current tag: $REF"
+                  continue
+                fi
+                if echo "$IN_USE_IDS" | grep -q "$ID"; then
+                  echo "In use, skip: $REF ($ID)"
+                  continue
+                fi
+                echo "Remove unused tag: $REF"
+                docker rmi "$REF" || true
+              done
+
+            echo "== Safe cleanup done =="
+          EOF
+`, nameFolderProject)
+}

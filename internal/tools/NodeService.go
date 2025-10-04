@@ -3,8 +3,28 @@ package tools
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 )
+
+func CompareVersion(installed, required string) bool {
+	// Parse les versions majeures.mineures.patch
+	installedParts := strings.Split(installed, ".")
+	requiredParts := strings.Split(required, ".")
+
+	for i := 0; i < len(requiredParts) && i < len(installedParts); i++ {
+		installedNum, _ := strconv.Atoi(installedParts[i])
+		requiredNum, _ := strconv.Atoi(requiredParts[i])
+
+		if installedNum > requiredNum {
+			return true
+		} else if installedNum < requiredNum {
+			return false
+		}
+	}
+	return true
+}
 
 func DeletePackageLock(packageLockPath string) {
 	if err := os.Remove(packageLockPath); err != nil {
