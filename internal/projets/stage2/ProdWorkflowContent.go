@@ -24,7 +24,7 @@ jobs:
 
       - name: Create .env files from dist
         run: |
-          find . -name "*.env.dist" -exec sh -c 'cp "$1" "${1%.dist}"' _ {} \;
+          find . -name "*.env.dist" -exec sh -c 'cp "$1" "${1%%.dist}"' _ {} \;
 
       - name: Create Docker networks
         run: docker network create traefik-nseven || true
@@ -123,7 +123,7 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Compute tag timestamp (UTC)
-        run: echo "TAG_TS=$(date -u +%Y.%m.%d-%H%%M)" >> $GITHUB_ENV
+        run: echo "TAG_TS=$(date -u +%%Y.%%m.%%d-%%H%%M)" >> $GITHUB_ENV
 
       - name: Build & Push ${{ matrix.service.name }}
         uses: docker/build-push-action@v6
@@ -180,7 +180,7 @@ jobs:
         run: |
           ssh ${{ secrets.IONOS_USER }}@${{ secrets.IONOS_HOST }} << 'EOF'
             set -e
-            cd ~/projects/prod/%s
+            cd ~/prod/%[1]v
 
             # pull le code main (si tu gardes des fichiers compose/*.yaml dans le repo)
             git fetch origin

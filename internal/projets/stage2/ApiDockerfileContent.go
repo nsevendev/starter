@@ -40,6 +40,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 ARG SERVICE=api
 ENV SERVICE=${SERVICE}
 COPY --from=build /app/dist/${SERVICE} /app/application
+COPY --from=build /app/go.mod ./
+COPY --from=build /app/go.sum ./
+COPY --from=build /app/internal ./internal
+COPY --from=build /app/cli ./cli
 COPY go.mod .
 RUN chmod +x /app/application
 CMD ["./application"]

@@ -184,6 +184,16 @@ func createAndSetDocker() error {
 		}
 	}
 
+	// Créer README à la racine
+	{
+		path := filepath.Join(pathFolderProject, "README.md")
+		if err := tools.WriteFileIfAbsent(path, stage2.ReadmeContent(nameFolderProject)); err != nil {
+			return fmt.Errorf("- [KO] création du README à la racine: %v", err)
+		} else {
+			fmt.Println("- [OK] création du README à la racine -")
+		}
+	}
+
 	// Créer .gitignore à la racine
 	{
 		pathGitignoreRoot := filepath.Join(pathFolderProject, ".gitignore")

@@ -28,7 +28,7 @@ jobs:
       - name: Create .env files from dist
         run: |
           # Créer les fichiers .env à partir des .env.dist
-          find . -name "*.env.dist" -exec sh -c 'cp "$1" "${1%.dist}"' _ {} \;
+          find . -name "*.env.dist" -exec sh -c 'cp "$1" "${1%%.dist}"' _ {} \;
 
       - name: Create Docker networks
         run: |
@@ -84,7 +84,7 @@ jobs:
           # ajouter ici les différents services si besoin
     steps:
       - name: Compute tag timestamp (UTC)
-        run: echo "TAG_TS=$(date -u +%Y.%m.%d-%H%%M)" >> $GITHUB_ENV
+        run: echo "TAG_TS=$(date -u +%%Y.%%m.%%d-%%H%%M)" >> $GITHUB_ENV
 
       - name: Checkout & setup
         uses: actions/checkout@v4
@@ -161,17 +161,13 @@ jobs:
             set -e
 
             # Navigate to project directory
-            cd ~/projects/test/%s
-
-            # Pull latest changes (safe even if already on preprod branch)
-            git fetch origin
-            git checkout preprod || git checkout -b preprod origin/preprod
-            git pull origin preprod
+            cd ~/preprod/%[1]v
 
             # Login GHCR (token GitHub avec scope packages:read côté serveur)
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
             export IMAGE_TAG="${{ env.IMAGE_TAG }}"
+			export APP_ENV=preprod
 
             # Pull & up
             make down || true

@@ -48,11 +48,6 @@ services:
       - "traefik.http.services.%s-api.loadbalancer.server.port=${PORT}"
     env_file:
       - ../api/.env
-    volumes:
-      - ../api/cli:/app/cli
-      - ../api/go.mod:/app/go.mod
-      - ../api/go.sum:/app/go.sum
-      - ../api/internal:/app/internal
     networks:
       - traefik-nseven
       - %s
