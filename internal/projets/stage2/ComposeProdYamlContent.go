@@ -6,20 +6,16 @@ func ComposeProdYamlContent(nameFolderProject string) string {
 	return fmt.Sprintf(`name: %s-${APP_ENV}
 services:
   front:
-    build:
-      target: ${APP_ENV}
-      context: ../front
-      dockerfile: ../docker/front.dockerfile
+    image: ghcr.io/nsevendev/%v/front:${IMAGE_TAG}
     container_name: %s_${APP_ENV}_front
-    image: %s-front:${APP_ENV}
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik-nseven"
-      - "traefik.http.routers.%s-front.rule=${HOST_TRAEFIK_FRONT}"
-      - "traefik.http.routers.%s-front.entrypoints=websecure"
-      - "traefik.http.routers.%s-front.tls=true"
-      - "traefik.http.routers.%s-front.tls.certresolver=le"
-      - "traefik.http.services.%s-front.loadbalancer.server.port=${PORT}"
+      - "traefik.http.routers.%s-front-${APP_ENV}.rule=${HOST_TRAEFIK_FRONT}"
+      - "traefik.http.routers.%s-front-${APP_ENV}.entrypoints=websecure"
+      - "traefik.http.routers.%s-front-${APP_ENV}.tls=true"
+      - "traefik.http.routers.%s-front-${APP_ENV}.tls.certresolver=le"
+      - "traefik.http.services.%s-front-${APP_ENV}.loadbalancer.server.port=${PORT}"
     env_file:
       - ../front/.env
     networks:
@@ -30,22 +26,16 @@ services:
     restart: unless-stopped
 
   api:
-    build:
-      target: ${APP_ENV}
-      context: ../api
-      args:
-        SERVICE: api
-      dockerfile: ../docker/api.dockerfile
+    image: ghcr.io/nsevendev/%v/api:${IMAGE_TAG}
     container_name: %s_${APP_ENV}_api
-    image: %s-api:${APP_ENV}
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik-nseven"
-      - "traefik.http.routers.%s-api.rule=${HOST_TRAEFIK_API}"
-      - "traefik.http.routers.%s-api.entrypoints=websecure"
-      - "traefik.http.routers.%s-api.tls=true"
-      - "traefik.http.routers.%s-api.tls.certresolver=le"
-      - "traefik.http.services.%s-api.loadbalancer.server.port=${PORT}"
+      - "traefik.http.routers.%s-api-${APP_ENV}.rule=${HOST_TRAEFIK_API}"
+      - "traefik.http.routers.%s-api-${APP_ENV}.entrypoints=websecure"
+      - "traefik.http.routers.%s-api-${APP_ENV}.tls=true"
+      - "traefik.http.routers.%s-api-${APP_ENV}.tls.certresolver=le"
+      - "traefik.http.services.%s-api-${APP_ENV}.loadbalancer.server.port=${PORT}"
     env_file:
       - ../api/.env
     networks:

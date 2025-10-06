@@ -5,6 +5,11 @@ import "fmt"
 func ReadmeContent(nameApp string) string {
 	return fmt.Sprintf(`# %v
 
+## Prérequis
+
+- avant le premier push en preprod ou prod quand il n'y a pas encore de code  
+commenter les parties test dans les CI
+
 ## Utilisation
 
 - utilisation du projet: taper la commande make
@@ -35,7 +40,7 @@ api/.env
 preparer sur le server dans le dossier ~/prod/%v avec le contenu suivant
 .env
 Makefile
-docker/compose.preprod.yaml
+docker/compose.prod.yaml
 docker/mongo-init
 front/.env
 api/.env

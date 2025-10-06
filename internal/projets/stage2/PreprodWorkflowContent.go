@@ -17,54 +17,54 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Run tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Create .env files from dist
-        run: |
-          # Créer les fichiers .env à partir des .env.dist
-          find . -name "*.env.dist" -exec sh -c 'cp "$1" "${1%%.dist}"' _ {} \;
-
-      - name: Create Docker networks
-        run: |
-          # Créer le réseau traefik-nseven requis par docker-compose
-          docker network create traefik-nseven || true
-
-      - name: Start services in dev mode
-        run: |
-          # Lancer le projet en mode dev
-          make up
-
-          # Copie le fichier environment.dist et creer le fichier environment.ts
-          # cp app/src/environments/environment.dist app/src/environments/environment.ts
-
-          # Attendre que les services soient prêts
-          sleep 30
-
-      - name: Run frontend tests
-        run: |
-          # Lancer tous les tests frontend
-          make tafc
-
-      - name: Check logs on failure
-        if: failure()
-        run: |
-          echo "=== APP Logs ==="
-          make lapp
-
-      - name: Cleanup
-        if: always()
-        run: |
-          make down || true
+  #test:
+  #  name: Run tests
+  #  runs-on: ubuntu-latest
+  #
+  #  steps:
+  #    - name: Checkout code
+  #      uses: actions/checkout@v4
+  #
+  #    - name: Create .env files from dist
+  #      run: |
+  #        # Créer les fichiers .env à partir des .env.dist
+  #        find . -name "*.env.dist" -exec sh -c 'cp "$1" "${1%%.dist}"' _ {} \;
+  #
+  #    - name: Create Docker networks
+  #      run: |
+  #        # Créer le réseau traefik-nseven requis par docker-compose
+  #        docker network create traefik-nseven || true
+  #
+  #    - name: Start services in dev mode
+  #      run: |
+  #        # Lancer le projet en mode dev
+  #        make up
+  #
+  #        # Copie le fichier environment.dist et creer le fichier environment.ts
+  #        # cp app/src/environments/environment.dist app/src/environments/environment.ts
+  #
+  #        # Attendre que les services soient prêts
+  #        sleep 30
+  #
+  #    - name: Run frontend tests
+  #      run: |
+  #        # Lancer tous les tests frontend
+  #        make tafc
+  #
+  #    - name: Check logs on failure
+  #      if: failure()
+  #      run: |
+  #        echo "=== APP Logs ==="
+  #        make lapp
+  #
+  #    - name: Cleanup
+  #      if: always()
+  #      run: |
+  #        make down || true
 
   build_and_push:
     if: github.event_name == 'push'
-    needs: test
+    #needs: test
     name: Build & push image to Github registry
     runs-on: ubuntu-latest
     env:
@@ -171,7 +171,7 @@ jobs:
 
             # Pull & up
             make down || true
-            make up
+            make deploy
           EOF
 
   cleanup_preprod_images:

@@ -49,6 +49,10 @@ upl: ## start container + logs
 upbl: ## build + start container +
 	$(DOCKER_COMPOSE) up --build
 
+deploy: ## pull and start containers (for CI/CD)
+	$(DOCKER_COMPOSE) pull
+	$(DOCKER_COMPOSE) up -d
+
 down: ## stop and delete container
 	$(DOCKER_COMPOSE) down
 

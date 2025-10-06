@@ -2,13 +2,13 @@ package stage2
 
 import "fmt"
 
-func EnvApiContent(nameFolderProject string, hostApi string) string {
+func EnvApiContent(nameFolderProject string, hostApi string, hostFront string) string {
 	return fmt.Sprintf(`APP_ENV=dev
 # connexion db en mode dev
-DB_NAME=%v_dev
+DB_NAME=%v_dev # change me
 DB_URI=mongodb://db:27017
 # pour les logs
-HOST_TRAEFIK_API=Host(`+"`%v`"+`)
+HOST_TRAEFIK_API=Host(`+"`%v`"+`) # change me
 # pour start server
 PORT=3000
 # info pour port db
@@ -34,7 +34,7 @@ MAIL_FROM=john@example.com
 
 # host cors
 CORS_DEV_APP=https://%v
-CORS_PREPROD_APP=https://nseven.woopear.fr
-CORS_PROD_APP=https://nseven.woopear.fr
-`, nameFolderProject, hostApi, hostApi)
+CORS_PREPROD_APP=https://%v # change me in preprod
+CORS_PROD_APP=https://%v # change me in prod
+`, nameFolderProject, hostApi, hostFront, hostFront, hostFront)
 }

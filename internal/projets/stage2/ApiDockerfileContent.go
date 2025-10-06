@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     ca-certificates \
  && rm -rf /var/lib/apt/lists/*
-RUN go install github.com/air-verse/air@latest
+RUN go install github.com/air-verse/air@v1.61.5
 RUN go install github.com/swaggo/swag/cmd/swag@latest
 RUN go install github.com/nsevenpack/mignosql/cmd/migrationcreate@latest
 RUN go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
@@ -43,7 +43,6 @@ COPY --from=build /app/dist/${SERVICE} /app/application
 COPY --from=build /app/go.mod ./
 COPY --from=build /app/go.sum ./
 COPY --from=build /app/internal ./internal
-COPY --from=build /app/cli ./cli
 COPY go.mod .
 RUN chmod +x /app/application
 CMD ["./application"]

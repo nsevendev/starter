@@ -204,6 +204,16 @@ func createAndSetDocker() error {
 		}
 	}
 
+	// Créer .releaserc.json à la racine
+	{
+		pathReleasercRoot := filepath.Join(pathFolderProject, ".releaserc.json")
+		if err := tools.WriteFileIfAbsent(pathReleasercRoot, stage2.ReleasercRootContent()); err != nil {
+			return fmt.Errorf("- [KO] création .releaserc.json à la racine: %v", err)
+		} else {
+			fmt.Println("- [OK] création .releaserc.json à la racine -")
+		}
+	}
+
 	return nil
 }
 
@@ -328,15 +338,15 @@ func createAndSetApi() error {
 	{
 		pathEnv := filepath.Join(pathFolderApi, ".env")
 		pathEnvDist := filepath.Join(pathFolderApi, ".env.dist")
-		if err := tools.WriteFileIfAbsent(pathEnv, stage2.EnvApiContent(nameFolderProject, hostTraefikApi)); err != nil {
-			return fmt.Errorf("- [KO] création .env: %v", err)
+		if err := tools.WriteFileIfAbsent(pathEnv, stage2.EnvApiContent(nameFolderProject, hostTraefikApi, hostTraefikFront)); err != nil {
+			return fmt.Errorf("- [KO] création /api/.env: %v", err)
 		} else {
-			fmt.Println("- [OK] création .env -")
+			fmt.Println("- [OK] création /api/.env -")
 		}
-		if err := tools.WriteFileIfAbsent(pathEnvDist, stage2.EnvApiContent(nameFolderProject, hostTraefikApi)); err != nil {
-			return fmt.Errorf("- [KO] création .env.dist: %v", err)
+		if err := tools.WriteFileIfAbsent(pathEnvDist, stage2.EnvApiContent(nameFolderProject, hostTraefikApi, hostTraefikFront)); err != nil {
+			return fmt.Errorf("- [KO] création /api/.env.dist: %v", err)
 		} else {
-			fmt.Println("- [OK] création .env.dist -")
+			fmt.Println("- [OK] création /api/.env.dist -")
 		}
 	}
 

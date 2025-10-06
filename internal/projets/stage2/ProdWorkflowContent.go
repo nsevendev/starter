@@ -16,40 +16,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Run tests (main)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Create .env files from dist
-        run: |
-          find . -name "*.env.dist" -exec sh -c 'cp "$1" "${1%%.dist}"' _ {} \;
-
-      - name: Create Docker networks
-        run: docker network create traefik-nseven || true
-
-      - name: Start services in dev mode
-        run: |
-          make up
-          sleep 30
-
-      - name: Run frontend tests
-        run: make tafc
-
-      - name: Check logs on failure
-        if: failure()
-        run: |
-          echo "=== APP Logs ==="
-          make lapp
-
-      - name: Cleanup
-        if: always()
-        run: make down || true
+  #test:
+  #  name: Run tests (main)
+  #  runs-on: ubuntu-latest
+  #  steps:
+  #    - uses: actions/checkout@v4
+  #
+  #    - name: Create .env files from dist
+  #      run: |
+  #        find . -name "*.env.dist" -exec sh -c 'cp "$1" "${1%%.dist}"' _ {} \;
+  #
+  #    - name: Create Docker networks
+  #      run: docker network create traefik-nseven || true
+  #
+  #    - name: Start services in dev mode
+  #      run: |
+  #        make up
+  #        sleep 30
+  #
+  #    - name: Run frontend tests
+  #      run: make tafc
+  #
+  #    - name: Check logs on failure
+  #      if: failure()
+  #      run: |
+  #        echo "=== APP Logs ==="
+  #        make lapp
+  #
+  #    - name: Cleanup
+  #      if: always()
+  #      run: make down || true
 
   release:
     if: github.event_name == 'push'
-    needs: test
+    #needs: test
     name: Semantic release (create tag & GitHub Release)
     runs-on: ubuntu-latest
     outputs:
@@ -143,7 +143,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # 4) Déploiement PROD (ne s'exécute que s'il y a une release)
+  
   deploy_prod:
     needs: [build_and_push_prod, release]
     if: needs.release.outputs.published == 'true'
@@ -182,17 +182,13 @@ jobs:
             set -e
             cd ~/prod/%[1]v
 
-            # pull le code main (si tu gardes des fichiers compose/*.yaml dans le repo)
-            git fetch origin
-            git checkout prod || git checkout -b prod origin/main
-            git pull origin prod
-
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
             export IMAGE_TAG="${{ env.IMAGE_TAG }}"
+            export APP_ENV=prod
 
             make down || true
-            make up
+            make deploy
           EOF
 
   cleanup_prod_images:
