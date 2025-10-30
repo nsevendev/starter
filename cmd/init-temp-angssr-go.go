@@ -213,6 +213,16 @@ func modifyRootEnvDist(projectPath string) error {
 		return err
 	}
 
+	// Ligne 6: HOST_TRAEFIK_APP=Host(`test.local`) -> HOST_TRAEFIK_APP=Host(`<hostTraefik>.local`)
+	if err := tools.ReplaceInFile(filePathDist, "HOST_TRAEFIK_APP=Host(`test.local`)", "HOST_TRAEFIK_APP=Host(`"+initHostTraefik+".local`)"); err != nil {
+		return err
+	}
+
+	// Ligne 7: HOST_TRAEFIK_API=Host(`test-api.local`) -> HOST_TRAEFIK_API=Host(`<hostTraefik>-api.local`)
+	if err := tools.ReplaceInFile(filePathDist, "HOST_TRAEFIK_API=Host(`test-api.local`)", "HOST_TRAEFIK_API=Host(`"+initHostTraefik+"-api.local`)"); err != nil {
+		return err
+	}
+
 	// Ligne 32: NAME_APP=monapp -> NAME_APP=<projectName>
 	if err := tools.ReplaceInFile(filePathDist, "NAME_APP=monapp", "NAME_APP="+initProjectName); err != nil {
 		return err
@@ -381,34 +391,40 @@ func modifyComposePreprod(projectPath, projectName string) error {
 	return nil
 }
 
-// modifyApiEnvDist modifie api/.env.dist
-func modifyApiEnvDist(projectPath, dbName, hostTraefik string) error {
-	fmt.Println("  Modification de api/.env.dist...")
-	filePath := filepath.Join(projectPath, "api", ".env.dist")
+// modifyApiEnvDist modifie api/.env.dist et crée api/.env
+func modifyApiEnvDist(projectPath, projectName, hostTraefik string) error {
+	fmt.Println("  Modification de api/.env.dist et création de api/.env...")
+	filePathDist := filepath.Join(projectPath, "api", ".env.dist")
+	filePathEnv := filepath.Join(projectPath, "api", ".env")
 
-	// Ligne 4: nom de la BDD
-	if dbName != "" {
-		if err := tools.ReplaceInFile(filePath, "testdb", dbName); err != nil {
-			if err := tools.ReplaceInFile(filePath, "mydb", dbName); err != nil {
-				return err
-			}
-		}
+	// Ligne 4: DB_NAME=myapp_dev -> DB_NAME=<projectName>_dev
+	if err := tools.ReplaceInFile(filePathDist, "DB_NAME=myapp_dev", "DB_NAME="+projectName+"_dev"); err != nil {
+		return err
 	}
 
-	// Ligne 8: host (doit correspondre à .env de la racine)
+	// Ligne 8: HOST_TRAEFIK_API=Host(`test-api.local`) -> HOST_TRAEFIK_API=Host(`<hostTraefik>-api.local`)
 	if hostTraefik != "" {
-		if err := tools.ReplaceInFile(filePath, "myhost", hostTraefik); err != nil {
+		if err := tools.ReplaceInFile(filePathDist, "HOST_TRAEFIK_API=Host(`test-api.local`)", "HOST_TRAEFIK_API=Host(`"+hostTraefik+"-api.local`)"); err != nil {
 			return err
 		}
 	}
 
-	// Lignes 34, 35, 36: hosts pour CORS (utilise hostTraefik)
-	if hostTraefik != "" {
-		if err := tools.ReplaceInFile(filePath, "test.local", hostTraefik); err != nil {
-			return err
-		}
+	// Lignes 34, 35, 36: http://test.local -> http://<projectName>.local
+	if err := tools.ReplaceInFile(filePathDist, "http://test.local", "http://"+projectName+".local"); err != nil {
+		return err
 	}
 
+	// Copier .env.dist vers .env
+	content, err := os.ReadFile(filePathDist)
+	if err != nil {
+		return fmt.Errorf("lecture de api/.env.dist: %w", err)
+	}
+
+	if err := os.WriteFile(filePathEnv, content, 0o644); err != nil {
+		return fmt.Errorf("création de api/.env: %w", err)
+	}
+
+	fmt.Println("    ✓ api/.env.dist et api/.env configurés")
 	return nil
 }
 
@@ -417,17 +433,11 @@ func modifyMakefile(projectPath string) error {
 	fmt.Println("  Modification du Makefile...")
 	filePath := filepath.Join(projectPath, "Makefile")
 
-	// Remplacer le nom du container générique par celui du projet
-	// Le format est généralement: project-api-1 ou project_api_1
-	containerName := initProjectName + "-api-1"
-
-	if err := tools.ReplaceInFile(filePath, "myproject-api-1", containerName); err != nil {
-		// Essayer avec underscore
-		containerNameUnderscore := initProjectName + "_api_1"
-		if err := tools.ReplaceInFile(filePath, "myproject_api_1", containerNameUnderscore); err != nil {
-			return err
-		}
+	// Lignes 108, 111, 114, 117, 120, 123, 126, 129: temp-angssr-go_dev_api
+	if err := tools.ReplaceInFile(filePath, "temp-angssr-go_dev_api", initProjectName+"_dev_api"); err != nil {
+		return err
 	}
 
+	fmt.Printf("    ✓ Makefile configuré avec le container: %s_dev_api\n", initProjectName)
 	return nil
 }
