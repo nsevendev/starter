@@ -12,12 +12,9 @@ import (
 )
 
 var (
-	initProjectName  string
-	initVersion      string
-	initAllowedHosts []string
-	initHostTraefik  string
-	initDbName       string
-	initDeployFolder string
+	initProjectName string
+	initVersion     string
+	initHostTraefik string
 )
 
 var initTempAngssrGo = &cobra.Command{
@@ -76,10 +73,7 @@ var initTempAngssrGo = &cobra.Command{
 func init() {
 	initTempAngssrGo.Flags().StringVar(&initProjectName, "name", "", "nom du projet (requis)")
 	initTempAngssrGo.Flags().StringVar(&initVersion, "version", "", "version du template (ex: v1.0.0) (requis)")
-	initTempAngssrGo.Flags().StringSliceVar(&initAllowedHosts, "allowedHosts", []string{}, "hosts autorisés pour Angular et CORS (ex: --allowedHosts=test.local,api.local)")
 	initTempAngssrGo.Flags().StringVar(&initHostTraefik, "hostTraefik", "", "host pour Traefik (ex: myproject.local)")
-	initTempAngssrGo.Flags().StringVar(&initDbName, "dbName", "", "nom de la base de données MongoDB")
-	initTempAngssrGo.Flags().StringVar(&initDeployFolder, "deployFolder", "", "nom du dossier de déploiement sur le serveur")
 
 	rootCmd.AddCommand(initTempAngssrGo)
 }
@@ -87,8 +81,9 @@ func init() {
 // applyTemplateModifications applique toutes les modifications du template selon les flags fournis
 func applyTemplateModifications(projectPath string) error {
 	// 1. Modification de app/angular.json (ligne 72 - allowedHosts)
-	if len(initAllowedHosts) > 0 {
-		if err := modifyAngularJson(projectPath); err != nil {
+	// allowedHosts = hostTraefik (si fourni)
+	if initHostTraefik != "" {
+		if err := modifyAngularJson(projectPath, initHostTraefik); err != nil {
 			return err
 		}
 	}
@@ -101,59 +96,51 @@ func applyTemplateModifications(projectPath string) error {
 	}
 
 	// 3. Modification de .github/workflows/preprod.yml
-	if initDeployFolder != "" {
-		if err := modifyPreprodWorkflow(projectPath); err != nil {
-			return err
-		}
+	// deployFolder = projectName
+	if err := modifyPreprodWorkflow(projectPath, initProjectName); err != nil {
+		return err
 	}
 
 	// 4. Modification de .github/workflows/prod.yml
-	if initDeployFolder != "" {
-		if err := modifyProdWorkflow(projectPath); err != nil {
-			return err
-		}
+	// deployFolder = projectName
+	if err := modifyProdWorkflow(projectPath, initProjectName); err != nil {
+		return err
 	}
 
 	// 5. Modification de docker/mongo-init/init-volume-db.js
-	if initDbName != "" {
-		if err := modifyMongoInit(projectPath); err != nil {
-			return err
-		}
+	// dbName = projectName
+	if err := modifyMongoInit(projectPath, initProjectName); err != nil {
+		return err
 	}
 
 	// 6. Modification de docker/compose.yaml
-	if initDbName != "" {
-		if err := modifyComposeYaml(projectPath); err != nil {
-			return err
-		}
+	// dbName = projectName
+	if err := modifyComposeYaml(projectPath, initProjectName); err != nil {
+		return err
 	}
 
 	// 7. Modification de docker/compose.preprod.yaml
-	if initDbName != "" {
-		if err := modifyComposePreprod(projectPath); err != nil {
-			return err
-		}
+	// dbName = projectName
+	if err := modifyComposePreprod(projectPath, initProjectName); err != nil {
+		return err
 	}
 
 	// 8. Modification de api/.env.dist
-	if initDbName != "" || initHostTraefik != "" || len(initAllowedHosts) > 0 {
-		if err := modifyApiEnvDist(projectPath); err != nil {
-			return err
-		}
+	// dbName = projectName, allowedHosts = hostTraefik
+	if err := modifyApiEnvDist(projectPath, initProjectName, initHostTraefik); err != nil {
+		return err
 	}
 
 	// 9. Modification du Makefile (nom du container)
-	if initProjectName != "" {
-		if err := modifyMakefile(projectPath); err != nil {
-			return err
-		}
+	if err := modifyMakefile(projectPath); err != nil {
+		return err
 	}
 
 	return nil
 }
 
 // modifyAngularJson modifie app/angular.json ligne 72 pour allowedHosts
-func modifyAngularJson(projectPath string) error {
+func modifyAngularJson(projectPath, allowedHost string) error {
 	fmt.Println("  Modification de app/angular.json...")
 	filePath := filepath.Join(projectPath, "app", "angular.json")
 
@@ -195,9 +182,9 @@ func modifyAngularJson(projectPath string) error {
 			continue
 		}
 
-		// Mise à jour de allowedHosts
-		options["allowedHosts"] = initAllowedHosts
-		fmt.Printf("    ✓ allowedHosts configuré pour le projet '%s': %v\n", projectKey, initAllowedHosts)
+		// Mise à jour de allowedHosts avec un slice contenant le host
+		options["allowedHosts"] = []string{allowedHost}
+		fmt.Printf("    ✓ allowedHosts configuré pour le projet '%s': [%s]\n", projectKey, allowedHost)
 		break
 	}
 
@@ -233,7 +220,7 @@ func modifyRootEnvDist(projectPath string) error {
 }
 
 // modifyPreprodWorkflow modifie .github/workflows/preprod.yml
-func modifyPreprodWorkflow(projectPath string) error {
+func modifyPreprodWorkflow(projectPath, deployFolder string) error {
 	fmt.Println("  Modification de .github/workflows/preprod.yml...")
 	filePath := filepath.Join(projectPath, ".github", "workflows", "preprod.yml")
 
@@ -250,18 +237,18 @@ func modifyPreprodWorkflow(projectPath string) error {
 	contentStr = strings.ReplaceAll(contentStr, "#       with:", "      with:")
 
 	// Ligne 155: changer "myfolder" par le deployFolder
-	contentStr = strings.ReplaceAll(contentStr, "myfolder", initDeployFolder)
+	contentStr = strings.ReplaceAll(contentStr, "myfolder", deployFolder)
 
 	if err := os.WriteFile(filePath, []byte(contentStr), 0o644); err != nil {
 		return fmt.Errorf("écriture de preprod.yml: %w", err)
 	}
 
-	fmt.Printf("    ✓ preprod.yml configuré avec le dossier: %s\n", initDeployFolder)
+	fmt.Printf("    ✓ preprod.yml configuré avec le dossier: %s\n", deployFolder)
 	return nil
 }
 
 // modifyProdWorkflow modifie .github/workflows/prod.yml
-func modifyProdWorkflow(projectPath string) error {
+func modifyProdWorkflow(projectPath, deployFolder string) error {
 	fmt.Println("  Modification de .github/workflows/prod.yml...")
 	filePath := filepath.Join(projectPath, ".github", "workflows", "prod.yml")
 
@@ -278,25 +265,25 @@ func modifyProdWorkflow(projectPath string) error {
 	contentStr = strings.ReplaceAll(contentStr, "#       with:", "      with:")
 
 	// Remplacer myfolder par deployFolder
-	contentStr = strings.ReplaceAll(contentStr, "myfolder", initDeployFolder)
+	contentStr = strings.ReplaceAll(contentStr, "myfolder", deployFolder)
 
 	if err := os.WriteFile(filePath, []byte(contentStr), 0o644); err != nil {
 		return fmt.Errorf("écriture de prod.yml: %w", err)
 	}
 
-	fmt.Printf("    ✓ prod.yml configuré avec le dossier: %s\n", initDeployFolder)
+	fmt.Printf("    ✓ prod.yml configuré avec le dossier: %s\n", deployFolder)
 	return nil
 }
 
 // modifyMongoInit modifie docker/mongo-init/init-volume-db.js
-func modifyMongoInit(projectPath string) error {
+func modifyMongoInit(projectPath, dbName string) error {
 	fmt.Println("  Modification de docker/mongo-init/init-volume-db.js...")
 	filePath := filepath.Join(projectPath, "docker", "mongo-init", "init-volume-db.js")
 
 	// Remplacer le nom de BDD par défaut (supposons "mydb" ou "testdb")
-	if err := tools.ReplaceInFile(filePath, "testdb", initDbName); err != nil {
+	if err := tools.ReplaceInFile(filePath, "testdb", dbName); err != nil {
 		// Si testdb n'existe pas, essayer mydb
-		if err := tools.ReplaceInFile(filePath, "mydb", initDbName); err != nil {
+		if err := tools.ReplaceInFile(filePath, "mydb", dbName); err != nil {
 			return err
 		}
 	}
@@ -305,13 +292,13 @@ func modifyMongoInit(projectPath string) error {
 }
 
 // modifyComposeYaml modifie docker/compose.yaml
-func modifyComposeYaml(projectPath string) error {
+func modifyComposeYaml(projectPath, dbName string) error {
 	fmt.Println("  Modification de docker/compose.yaml...")
 	filePath := filepath.Join(projectPath, "docker", "compose.yaml")
 
 	// Lignes 85, 89, 90 concernent probablement le nom de la BDD
-	if err := tools.ReplaceInFile(filePath, "testdb", initDbName); err != nil {
-		if err := tools.ReplaceInFile(filePath, "mydb", initDbName); err != nil {
+	if err := tools.ReplaceInFile(filePath, "testdb", dbName); err != nil {
+		if err := tools.ReplaceInFile(filePath, "mydb", dbName); err != nil {
 			return err
 		}
 	}
@@ -320,13 +307,13 @@ func modifyComposeYaml(projectPath string) error {
 }
 
 // modifyComposePreprod modifie docker/compose.preprod.yaml
-func modifyComposePreprod(projectPath string) error {
+func modifyComposePreprod(projectPath, dbName string) error {
 	fmt.Println("  Modification de docker/compose.preprod.yaml...")
 	filePath := filepath.Join(projectPath, "docker", "compose.preprod.yaml")
 
 	// Lignes 66, 70, 71 concernent le nom de la BDD
-	if err := tools.ReplaceInFile(filePath, "testdb", initDbName); err != nil {
-		if err := tools.ReplaceInFile(filePath, "mydb", initDbName); err != nil {
+	if err := tools.ReplaceInFile(filePath, "testdb", dbName); err != nil {
+		if err := tools.ReplaceInFile(filePath, "mydb", dbName); err != nil {
 			return err
 		}
 	}
@@ -335,31 +322,29 @@ func modifyComposePreprod(projectPath string) error {
 }
 
 // modifyApiEnvDist modifie api/.env.dist
-func modifyApiEnvDist(projectPath string) error {
+func modifyApiEnvDist(projectPath, dbName, hostTraefik string) error {
 	fmt.Println("  Modification de api/.env.dist...")
 	filePath := filepath.Join(projectPath, "api", ".env.dist")
 
 	// Ligne 4: nom de la BDD
-	if initDbName != "" {
-		if err := tools.ReplaceInFile(filePath, "testdb", initDbName); err != nil {
-			if err := tools.ReplaceInFile(filePath, "mydb", initDbName); err != nil {
+	if dbName != "" {
+		if err := tools.ReplaceInFile(filePath, "testdb", dbName); err != nil {
+			if err := tools.ReplaceInFile(filePath, "mydb", dbName); err != nil {
 				return err
 			}
 		}
 	}
 
 	// Ligne 8: host (doit correspondre à .env de la racine)
-	if initHostTraefik != "" {
-		if err := tools.ReplaceInFile(filePath, "myhost", initHostTraefik); err != nil {
+	if hostTraefik != "" {
+		if err := tools.ReplaceInFile(filePath, "myhost", hostTraefik); err != nil {
 			return err
 		}
 	}
 
-	// Lignes 34, 35, 36: hosts pour CORS
-	if len(initAllowedHosts) > 0 {
-		// Créer une liste de hosts séparés par des virgules
-		hostsString := strings.Join(initAllowedHosts, ",")
-		if err := tools.ReplaceInFile(filePath, "test.local", hostsString); err != nil {
+	// Lignes 34, 35, 36: hosts pour CORS (utilise hostTraefik)
+	if hostTraefik != "" {
+		if err := tools.ReplaceInFile(filePath, "test.local", hostTraefik); err != nil {
 			return err
 		}
 	}
