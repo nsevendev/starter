@@ -136,6 +136,11 @@ func applyTemplateModifications(projectPath string) error {
 		return err
 	}
 
+	// 10. Copie de app/.env.dist vers app/.env
+	if err := copyAppEnv(projectPath); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -439,5 +444,25 @@ func modifyMakefile(projectPath string) error {
 	}
 
 	fmt.Printf("    ✓ Makefile configuré avec le container: %s_dev_api\n", initProjectName)
+	return nil
+}
+
+// copyAppEnv copie app/.env.dist vers app/.env
+func copyAppEnv(projectPath string) error {
+	fmt.Println("  Création de app/.env...")
+	filePathDist := filepath.Join(projectPath, "app", ".env.dist")
+	filePathEnv := filepath.Join(projectPath, "app", ".env")
+
+	// Copier .env.dist vers .env
+	content, err := os.ReadFile(filePathDist)
+	if err != nil {
+		return fmt.Errorf("lecture de app/.env.dist: %w", err)
+	}
+
+	if err := os.WriteFile(filePathEnv, content, 0o644); err != nil {
+		return fmt.Errorf("création de app/.env: %w", err)
+	}
+
+	fmt.Println("    ✓ app/.env créé")
 	return nil
 }
