@@ -201,21 +201,34 @@ func modifyAngularJson(projectPath, allowedHost string) error {
 	return nil
 }
 
-// modifyRootEnvDist modifie .env.dist à la racine
+// modifyRootEnvDist modifie .env.dist et crée .env à la racine
 func modifyRootEnvDist(projectPath string) error {
-	fmt.Println("  Modification de .env.dist...")
-	filePath := filepath.Join(projectPath, ".env.dist")
+	fmt.Println("  Modification de .env.dist et création de .env...")
+	filePathDist := filepath.Join(projectPath, ".env.dist")
+	filePathEnv := filepath.Join(projectPath, ".env")
 
-	// Ligne 5: TRAEFIK_HOST
-	if err := tools.ReplaceInFile(filePath, "myhost", initHostTraefik); err != nil {
+	// Modifier .env.dist
+	// Ligne 5: TRAEFIK_HOST=myhost -> TRAEFIK_HOST=<hostTraefik>
+	if err := tools.ReplaceInFile(filePathDist, "TRAEFIK_HOST=myhost", "TRAEFIK_HOST="+initHostTraefik); err != nil {
 		return err
 	}
 
-	// Ligne 32: NAME_NETWORK (utilise le nom du projet)
-	if err := tools.ReplaceInFile(filePath, "NAME_APP", initProjectName); err != nil {
+	// Ligne 32: NAME_APP=monapp -> NAME_APP=<projectName>
+	if err := tools.ReplaceInFile(filePathDist, "NAME_APP=monapp", "NAME_APP="+initProjectName); err != nil {
 		return err
 	}
 
+	// Copier .env.dist vers .env
+	content, err := os.ReadFile(filePathDist)
+	if err != nil {
+		return fmt.Errorf("lecture de .env.dist: %w", err)
+	}
+
+	if err := os.WriteFile(filePathEnv, content, 0o644); err != nil {
+		return fmt.Errorf("création de .env: %w", err)
+	}
+
+	fmt.Println("    ✓ .env.dist et .env configurés")
 	return nil
 }
 
@@ -229,9 +242,18 @@ func modifyPreprodWorkflow(projectPath, deployFolder string) error {
 		return fmt.Errorf("lecture de preprod.yml: %w", err)
 	}
 
-	contentStr := string(content)
+	lines := strings.Split(string(content), "\n")
 
-	// Décommenter les lignes commentées (enlever les # en début de ligne)
+	// Décommenter les lignes 1 à 8 (index 0 à 7)
+	for i := 0; i < 8 && i < len(lines); i++ {
+		if strings.HasPrefix(lines[i], "#") {
+			lines[i] = strings.TrimPrefix(lines[i], "#")
+		}
+	}
+
+	contentStr := strings.Join(lines, "\n")
+
+	// Décommenter les autres lignes commentées
 	contentStr = strings.ReplaceAll(contentStr, "#     - name:", "    - name:")
 	contentStr = strings.ReplaceAll(contentStr, "#       uses:", "      uses:")
 	contentStr = strings.ReplaceAll(contentStr, "#       with:", "      with:")
@@ -257,14 +279,23 @@ func modifyProdWorkflow(projectPath, deployFolder string) error {
 		return fmt.Errorf("lecture de prod.yml: %w", err)
 	}
 
-	contentStr := string(content)
+	lines := strings.Split(string(content), "\n")
 
-	// Décommenter les lignes commentées
+	// Décommenter les lignes 1 à 7 (index 0 à 6)
+	for i := 0; i < 7 && i < len(lines); i++ {
+		if strings.HasPrefix(lines[i], "#") {
+			lines[i] = strings.TrimPrefix(lines[i], "#")
+		}
+	}
+
+	contentStr := strings.Join(lines, "\n")
+
+	// Décommenter les autres lignes commentées
 	contentStr = strings.ReplaceAll(contentStr, "#     - name:", "    - name:")
 	contentStr = strings.ReplaceAll(contentStr, "#       uses:", "      uses:")
 	contentStr = strings.ReplaceAll(contentStr, "#       with:", "      with:")
 
-	// Remplacer myfolder par deployFolder
+	// Ligne 174: changer "myfolder" par le deployFolder
 	contentStr = strings.ReplaceAll(contentStr, "myfolder", deployFolder)
 
 	if err := os.WriteFile(filePath, []byte(contentStr), 0o644); err != nil {
@@ -276,46 +307,75 @@ func modifyProdWorkflow(projectPath, deployFolder string) error {
 }
 
 // modifyMongoInit modifie docker/mongo-init/init-volume-db.js
-func modifyMongoInit(projectPath, dbName string) error {
+func modifyMongoInit(projectPath, projectName string) error {
 	fmt.Println("  Modification de docker/mongo-init/init-volume-db.js...")
 	filePath := filepath.Join(projectPath, "docker", "mongo-init", "init-volume-db.js")
 
-	// Remplacer le nom de BDD par défaut (supposons "mydb" ou "testdb")
-	if err := tools.ReplaceInFile(filePath, "testdb", dbName); err != nil {
-		// Si testdb n'existe pas, essayer mydb
-		if err := tools.ReplaceInFile(filePath, "mydb", dbName); err != nil {
-			return err
-		}
+	// Lignes 17-20: remplacer "myapp" par le nom du projet
+	// Ligne 17: myapp_prod
+	if err := tools.ReplaceInFile(filePath, "myapp_prod", projectName+"_prod"); err != nil {
+		return err
+	}
+
+	// Ligne 18: myapp_preprod
+	if err := tools.ReplaceInFile(filePath, "myapp_preprod", projectName+"_preprod"); err != nil {
+		return err
+	}
+
+	// Ligne 19: myapp_dev
+	if err := tools.ReplaceInFile(filePath, "myapp_dev", projectName+"_dev"); err != nil {
+		return err
+	}
+
+	// Ligne 20: myapp_test
+	if err := tools.ReplaceInFile(filePath, "myapp_test", projectName+"_test"); err != nil {
+		return err
 	}
 
 	return nil
 }
 
 // modifyComposeYaml modifie docker/compose.yaml
-func modifyComposeYaml(projectPath, dbName string) error {
+func modifyComposeYaml(projectPath, projectName string) error {
 	fmt.Println("  Modification de docker/compose.yaml...")
 	filePath := filepath.Join(projectPath, "docker", "compose.yaml")
 
-	// Lignes 85, 89, 90 concernent probablement le nom de la BDD
-	if err := tools.ReplaceInFile(filePath, "testdb", dbName); err != nil {
-		if err := tools.ReplaceInFile(filePath, "mydb", dbName); err != nil {
-			return err
-		}
+	// Ligne 85: temp-angssr-go
+	if err := tools.ReplaceInFile(filePath, "temp-angssr-go", projectName); err != nil {
+		return err
+	}
+
+	// Ligne 89: temp-angssr-go_dev_db (garder _dev_db)
+	if err := tools.ReplaceInFile(filePath, "temp-angssr-go_dev_db", projectName+"_dev_db"); err != nil {
+		return err
+	}
+
+	// Ligne 90: temp-angssr-go_dev_redis_data (garder _dev_redis_data)
+	if err := tools.ReplaceInFile(filePath, "temp-angssr-go_dev_redis_data", projectName+"_dev_redis_data"); err != nil {
+		return err
 	}
 
 	return nil
 }
 
 // modifyComposePreprod modifie docker/compose.preprod.yaml
-func modifyComposePreprod(projectPath, dbName string) error {
+func modifyComposePreprod(projectPath, projectName string) error {
 	fmt.Println("  Modification de docker/compose.preprod.yaml...")
 	filePath := filepath.Join(projectPath, "docker", "compose.preprod.yaml")
 
-	// Lignes 66, 70, 71 concernent le nom de la BDD
-	if err := tools.ReplaceInFile(filePath, "testdb", dbName); err != nil {
-		if err := tools.ReplaceInFile(filePath, "mydb", dbName); err != nil {
-			return err
-		}
+	// Ligne 66: temp-angssr-go (même que ligne 85 de compose.yaml)
+	if err := tools.ReplaceInFile(filePath, "temp-angssr-go", projectName); err != nil {
+		return err
+	}
+
+	// Ligne 70: temp-angssr-go_dev_db (même que ligne 89 de compose.yaml)
+	if err := tools.ReplaceInFile(filePath, "temp-angssr-go_dev_db", projectName+"_dev_db"); err != nil {
+		return err
+	}
+
+	// Ligne 71: temp-angssr-go_dev_redis_data (même que ligne 90 de compose.yaml)
+	if err := tools.ReplaceInFile(filePath, "temp-angssr-go_dev_redis_data", projectName+"_dev_redis_data"); err != nil {
+		return err
 	}
 
 	return nil
