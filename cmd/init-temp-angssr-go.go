@@ -410,7 +410,7 @@ func modifyApiEnvDist(projectPath, projectName, hostTraefik string) error {
 	}
 
 	// Lignes 34, 35, 36: http://test.local -> http://<projectName>.local
-	if err := tools.ReplaceInFile(filePathDist, "http://test.local", "http://"+projectName+".local"); err != nil {
+	if err := tools.ReplaceInFile(filePathDist, "http://test.local", "http://"+hostTraefik+".local"); err != nil {
 		return err
 	}
 
