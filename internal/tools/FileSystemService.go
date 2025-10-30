@@ -45,3 +45,20 @@ func WriteFileIfAbsent(path, content string) error {
 	}
 	return nil
 }
+
+// ReplaceInFile effectue un remplacement de texte dans un fichier
+func ReplaceInFile(path, old, new string) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("lecture du fichier %s: %w", path, err)
+	}
+
+	newContent := strings.ReplaceAll(string(content), old, new)
+
+	if err := os.WriteFile(path, []byte(newContent), 0o644); err != nil {
+		return fmt.Errorf("écriture du fichier %s: %w", path, err)
+	}
+
+	fmt.Printf("  ✓ %s modifié\n", path)
+	return nil
+}
