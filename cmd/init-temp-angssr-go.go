@@ -483,7 +483,15 @@ func replaceGoImports(projectPath, projectName string) error {
 		return nil
 	}
 
-	// Remplacer "temp-angssr-go" par le nom du projet dans tous les fichiers .go
+	// 1. Modifier le go.mod dans api/
+	goModPath := filepath.Join(apiPath, "go.mod")
+	if _, err := os.Stat(goModPath); err == nil {
+		if err := tools.ReplaceInFile(goModPath, "temp-angssr-go/api", projectName+"/api"); err != nil {
+			return fmt.Errorf("modification de go.mod: %w", err)
+		}
+	}
+
+	// 2. Remplacer "temp-angssr-go" par le nom du projet dans tous les fichiers .go
 	if err := tools.ReplaceInAllGoFiles(apiPath, "temp-angssr-go", projectName); err != nil {
 		return fmt.Errorf("remplacement des imports Go: %w", err)
 	}
