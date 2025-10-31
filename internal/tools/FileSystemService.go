@@ -3,6 +3,7 @@ package tools
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -60,5 +61,60 @@ func ReplaceInFile(path, old, new string) error {
 	}
 
 	fmt.Printf("  ✓ %s modifié\n", path)
+	return nil
+}
+
+// ReplaceInAllGoFiles parcourt récursivement un dossier et remplace du texte dans tous les fichiers .go
+func ReplaceInAllGoFiles(rootDir, old, new string) error {
+	var filesModified int
+
+	err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Ignorer les dossiers
+		if info.IsDir() {
+			return nil
+		}
+
+		// Traiter uniquement les fichiers .go
+		if filepath.Ext(path) != ".go" {
+			return nil
+		}
+
+		// Lire le fichier
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("lecture du fichier %s: %w", path, err)
+		}
+
+		// Vérifier si le fichier contient le texte à remplacer
+		contentStr := string(content)
+		if !strings.Contains(contentStr, old) {
+			return nil
+		}
+
+		// Remplacer le texte
+		newContent := strings.ReplaceAll(contentStr, old, new)
+
+		// Écrire le fichier modifié
+		if err := os.WriteFile(path, []byte(newContent), 0o644); err != nil {
+			return fmt.Errorf("écriture du fichier %s: %w", path, err)
+		}
+
+		filesModified++
+		fmt.Printf("  ✓ %s modifié\n", path)
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if filesModified > 0 {
+		fmt.Printf("  Total: %d fichier(s) Go modifié(s)\n", filesModified)
+	}
+
 	return nil
 }

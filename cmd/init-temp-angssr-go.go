@@ -141,6 +141,11 @@ func applyTemplateModifications(projectPath string) error {
 		return err
 	}
 
+	// 11. Remplacement des imports "temp-angssr-go" par le nom du projet dans tous les fichiers Go de api/
+	if err := replaceGoImports(projectPath, initProjectName); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -464,5 +469,25 @@ func copyAppEnv(projectPath string) error {
 	}
 
 	fmt.Println("    ✓ app/.env créé")
+	return nil
+}
+
+// replaceGoImports remplace les imports "temp-angssr-go" par le nom du projet dans tous les fichiers Go de api/
+func replaceGoImports(projectPath, projectName string) error {
+	fmt.Println("  Remplacement des imports Go dans api/...")
+	apiPath := filepath.Join(projectPath, "api")
+
+	// Vérifier que le dossier api/ existe
+	if _, err := os.Stat(apiPath); os.IsNotExist(err) {
+		fmt.Println("    ⚠ Dossier api/ non trouvé, skip")
+		return nil
+	}
+
+	// Remplacer "temp-angssr-go" par le nom du projet dans tous les fichiers .go
+	if err := tools.ReplaceInAllGoFiles(apiPath, "temp-angssr-go", projectName); err != nil {
+		return fmt.Errorf("remplacement des imports Go: %w", err)
+	}
+
+	fmt.Println("    ✓ Imports Go mis à jour")
 	return nil
 }
